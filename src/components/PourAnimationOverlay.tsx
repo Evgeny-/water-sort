@@ -136,18 +136,11 @@ export function PourAnimationOverlay({
       await new Promise((r) => setTimeout(r, 120));
       setStreamPos(null);
 
-      // Phase 4: Tilt back
+      // Phase 4: Tilt back and return to original position in one smooth motion
       await animate(
         scope.current,
-        { rotate: 0 },
-        { duration: 0.1, ease: "easeOut" },
-      );
-
-      // Phase 5: Return to original position
-      await animate(
-        scope.current,
-        { x: 0, y: 0, scale: 1 },
-        { duration: 0.12, ease: "easeInOut" },
+        { x: 0, y: 0, rotate: 0, scale: 1 },
+        { duration: 0.25, ease: [0.22, 1, 0.36, 1] },
       );
 
       onFinished();

@@ -213,3 +213,15 @@ button:disabled {
   font-size: 14px;
   font-weight: 600;
 }
+
+/* ─── Tube shake animation ─── */
+@keyframes tube-shake {
+  0%   { transform: translateX(0); }
+  12%  { transform: translateX(-6px); }
+  25%  { transform: translateX(6px); }
+  37%  { transform: translateX(-4px); }
+  50%  { transform: translateX(4px); }
+  62%  { transform: translateX(-2px); }
+  75%  { transform: translateX(2px); }
+  100% { transform: translateX(0); }
+}

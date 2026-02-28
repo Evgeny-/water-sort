@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { type Tube, TUBE_CAPACITY } from "../game/types";
 import {
   canPour,
@@ -8,7 +8,7 @@ import {
   createGameState,
   isLevelComplete,
   isTubeComplete,
-  isStuck as checkStuck,
+  getValidMoves,
   revealTopSegments,
 } from "../game/engine";
 
@@ -91,8 +91,8 @@ export function useGameState(initialTubes: Tube[], initialLockedMask: boolean[][
       const { fromIndex, toIndex } = prev.pourAnim;
       const newTubes = pour(prev.tubes, fromIndex, toIndex, prev.lockedMask);
 
-      // Reveal newly exposed top segments after pouring
-      const newLockedMask = revealTopSegments(prev.lockedMask, newTubes);
+      // Reveal newly exposed top segments — only source and dest changed
+      const newLockedMask = revealTopSegments(prev.lockedMask, newTubes, [fromIndex, toIndex]);
 
       return {
         ...prev,
@@ -151,8 +151,15 @@ export function useGameState(initialTubes: Tube[], initialLockedMask: boolean[][
     }));
   }, [initialTubes, initialLockedMask]);
 
-  const levelComplete = isLevelComplete(state.tubes, state.lockedMask);
-  const stuck = !levelComplete && checkStuck(state.tubes, state.lockedMask);
+  const levelComplete = useMemo(
+    () => isLevelComplete(state.tubes, state.lockedMask),
+    [state.tubes, state.lockedMask],
+  );
+  // Skip stuck check during pour animation — player can't act anyway
+  const stuck = useMemo(
+    () => !levelComplete && !state.pourAnim && getValidMoves(state.tubes, state.lockedMask).length === 0,
+    [levelComplete, state.pourAnim, state.tubes, state.lockedMask],
+  );
 
   return { state, selectTube, unlockPaidTube, commitPour, finishPourAnim, undo, restart, levelComplete, stuck };
 }

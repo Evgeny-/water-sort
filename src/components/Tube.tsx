@@ -482,29 +482,34 @@ export function Tube({
     ? "rgba(34, 197, 94, 0.6)"
     : "rgba(148, 163, 184, 0.35)";
 
+  // Clear invalid shake after animation completes
+  const [shaking, setShaking] = useState(false);
+  useEffect(() => {
+    if (invalid) {
+      setShaking(true);
+      const timer = setTimeout(() => setShaking(false), 400);
+      return () => clearTimeout(timer);
+    }
+  }, [invalid]);
+
   return (
-    <motion.div
+    <div
       onClick={onClick}
-      animate={{
-        y: selected ? -20 : 0,
-        scale: selected ? 1.05 : 1,
-        x: invalid ? [0, -6, 6, -4, 4, -2, 2, 0] : 0,
-      }}
-      transition={
-        invalid
-          ? { x: { duration: 0.4, ease: "easeInOut" } }
-          : { type: "spring", stiffness: 350, damping: 28, mass: 0.8 }
-      }
       style={{
         width: TOTAL_WIDTH,
         height: TOTAL_HEIGHT,
         position: "relative",
         cursor: complete ? "default" : "pointer",
+        transform: selected
+          ? "translateY(-20px) scale(1.05)"
+          : "translateY(0) scale(1)",
+        transition: "transform 0.2s cubic-bezier(0.22, 1, 0.36, 1)",
         filter: complete
           ? "drop-shadow(0 0 12px rgba(34, 197, 94, 0.3))"
           : selected
             ? "drop-shadow(0 0 10px rgba(59, 130, 246, 0.4))"
-            : "none",
+            : undefined,
+        animation: shaking ? "tube-shake 0.4s ease-in-out" : undefined,
       }}
     >
       <svg
@@ -556,7 +561,16 @@ export function Tube({
 
             return (
               <g key={segKey}>
-                {isRevealing ? (
+                {isRevealing && simplified ? (
+                  /* Simplified reveal: instant color change, no animation */
+                  <rect
+                    x={0}
+                    y={segTop}
+                    width={TOTAL_WIDTH}
+                    height={SEGMENT_HEIGHT + 1}
+                    fill={realColor}
+                  />
+                ) : isRevealing ? (
                   /* Segment being revealed: animate color from locked gray to real color */
                   <motion.rect
                     x={0}
@@ -642,7 +656,38 @@ export function Tube({
                     fill={baseColor}
                   />
                 )}
-                {(isLocked || isRevealing) && (
+                {isLocked && (
+                  simplified ? (
+                    <text
+                      x={segCenterX}
+                      y={segCenterY}
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                      fontSize={18}
+                      fontWeight={700}
+                      style={{ pointerEvents: "none" }}
+                      fill="rgba(255,255,255,0.6)"
+                    >
+                      ?
+                    </text>
+                  ) : (
+                    <motion.text
+                      x={segCenterX}
+                      y={segCenterY}
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                      fontSize={18}
+                      fontWeight={700}
+                      style={{ pointerEvents: "none" }}
+                      initial={{ opacity: 0.6, scale: 1 }}
+                      animate={{ opacity: 0.6, scale: 1 }}
+                      fill="rgba(255,255,255,0.6)"
+                    >
+                      ?
+                    </motion.text>
+                  )
+                )}
+                {isRevealing && !simplified && (
                   <motion.text
                     x={segCenterX}
                     y={segCenterY}
@@ -652,16 +697,8 @@ export function Tube({
                     fontWeight={700}
                     style={{ pointerEvents: "none" }}
                     initial={{ opacity: 0.6, scale: 1 }}
-                    animate={
-                      isRevealing
-                        ? { opacity: 0, scale: 1.5 }
-                        : { opacity: 0.6, scale: 1 }
-                    }
-                    transition={
-                      isRevealing
-                        ? { duration: 0.3, ease: "easeOut" }
-                        : undefined
-                    }
+                    animate={{ opacity: 0, scale: 1.5 }}
+                    transition={{ duration: 0.3, ease: "easeOut" }}
                     fill="rgba(255,255,255,0.6)"
                   >
                     ?
@@ -716,6 +753,6 @@ export function Tube({
           />
         )}
       </svg>
-    </motion.div>
+    </div>
   );
 }

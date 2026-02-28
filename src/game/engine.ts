@@ -51,7 +51,7 @@ export function pour(tubes: Tube[], from: number, to: number, lockedMask?: boole
   const newTubes = tubes.map((t, i) => {
     if (i === from) return source;
     if (i === to) return dest;
-    return [...t];
+    return t; // unchanged tubes don't need copying
   });
 
   return newTubes;
@@ -98,11 +98,23 @@ export function isStuck(tubes: Tube[], lockedMask?: boolean[][]): boolean {
  * - Reveals the topmost segment if it was locked
  * Returns a new mask (immutable).
  */
+/**
+ * Sync locked mask for specific tubes and reveal the new top segment.
+ * Only processes the given tube indices; other masks are reused as-is.
+ */
 export function revealTopSegments(
   lockedMask: boolean[][],
   tubes: Tube[],
+  affectedIndices?: number[],
 ): boolean[][] {
+  // If no specific indices given, process all (for initial setup)
+  const indicesToProcess = affectedIndices
+    ? new Set(affectedIndices)
+    : null;
+
   return lockedMask.map((tubeMask, ti) => {
+    if (indicesToProcess && !indicesToProcess.has(ti)) return tubeMask;
+
     const tube = tubes[ti]!;
     // Sync mask length to tube length
     let newMask: boolean[];

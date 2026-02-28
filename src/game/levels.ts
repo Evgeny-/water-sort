@@ -20,16 +20,85 @@ interface DifficultyParams {
  */
 function getDifficulty(levelNumber: number): DifficultyParams {
   //                                                    free   locked%   paid
-  if (levelNumber <= 3) return { colors: 3, tubesPerColor: 2, emptyTubes: 1, lockedPercentage: 0,    paidTubes: 1 };
-  if (levelNumber <= 4) return { colors: 4, tubesPerColor: 2, emptyTubes: 1, lockedPercentage: 0,    paidTubes: 1 };
-  if (levelNumber <= 8) return { colors: 4, tubesPerColor: 2, emptyTubes: 1, lockedPercentage: 0.15, paidTubes: 1 };
-  if (levelNumber <= 18) return { colors: 5, tubesPerColor: 2, emptyTubes: 2, lockedPercentage: 0.25, paidTubes: 1 };
-  if (levelNumber <= 30) return { colors: 5, tubesPerColor: 3, emptyTubes: 2, lockedPercentage: 0.35, paidTubes: 1 };
-  if (levelNumber <= 50) return { colors: 6, tubesPerColor: 3, emptyTubes: 2, lockedPercentage: 0.45, paidTubes: 1 };
-  if (levelNumber <= 75) return { colors: 6, tubesPerColor: 4, emptyTubes: 2, lockedPercentage: 0.55, paidTubes: 1 };
-  if (levelNumber <= 105) return { colors: 7, tubesPerColor: 4, emptyTubes: 2, lockedPercentage: 0.65, paidTubes: 1 };
-  if (levelNumber <= 150) return { colors: 7, tubesPerColor: 5, emptyTubes: 3, lockedPercentage: 0.75, paidTubes: 1 };
-  return { colors: 7, tubesPerColor: 5, emptyTubes: 3, lockedPercentage: 0.75, paidTubes: 1 };
+  if (levelNumber <= 3)
+    return {
+      colors: 3,
+      tubesPerColor: 2,
+      emptyTubes: 1,
+      lockedPercentage: 0,
+      paidTubes: 1,
+    };
+  if (levelNumber <= 4)
+    return {
+      colors: 4,
+      tubesPerColor: 2,
+      emptyTubes: 1,
+      lockedPercentage: 0,
+      paidTubes: 1,
+    };
+  if (levelNumber <= 8)
+    return {
+      colors: 4,
+      tubesPerColor: 2,
+      emptyTubes: 1,
+      lockedPercentage: 0.15,
+      paidTubes: 1,
+    };
+  if (levelNumber <= 18)
+    return {
+      colors: 5,
+      tubesPerColor: 2,
+      emptyTubes: 2,
+      lockedPercentage: 0.25,
+      paidTubes: 1,
+    };
+  if (levelNumber <= 30)
+    return {
+      colors: 5,
+      tubesPerColor: 3,
+      emptyTubes: 2,
+      lockedPercentage: 0.35,
+      paidTubes: 1,
+    };
+  if (levelNumber <= 50)
+    return {
+      colors: 6,
+      tubesPerColor: 3,
+      emptyTubes: 2,
+      lockedPercentage: 0.45,
+      paidTubes: 2,
+    };
+  if (levelNumber <= 75)
+    return {
+      colors: 6,
+      tubesPerColor: 4,
+      emptyTubes: 2,
+      lockedPercentage: 0.55,
+      paidTubes: 2,
+    };
+  if (levelNumber <= 105)
+    return {
+      colors: 7,
+      tubesPerColor: 4,
+      emptyTubes: 2,
+      lockedPercentage: 0.65,
+      paidTubes: 2,
+    };
+  if (levelNumber <= 150)
+    return {
+      colors: 7,
+      tubesPerColor: 5,
+      emptyTubes: 2,
+      lockedPercentage: 0.85,
+      paidTubes: 2,
+    };
+  return {
+    colors: 7,
+    tubesPerColor: 5,
+    emptyTubes: 2,
+    lockedPercentage: 0.85,
+    paidTubes: 2,
+  };
 }
 
 /** Fisher-Yates shuffle of an array in place */
@@ -122,7 +191,8 @@ function getTubeCost(levelNumber: number): number {
 }
 
 export function createLevel(levelNumber: number): Level {
-  const { colors, tubesPerColor, emptyTubes, lockedPercentage, paidTubes } = getDifficulty(levelNumber);
+  const { colors, tubesPerColor, emptyTubes, lockedPercentage, paidTubes } =
+    getDifficulty(levelNumber);
   const filledTubeCount = colors * tubesPerColor;
   // Total empty tubes includes both free and paid (paid are appended at the end)
   const totalEmptyTubes = emptyTubes + paidTubes;
