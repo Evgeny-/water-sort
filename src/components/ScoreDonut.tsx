@@ -6,6 +6,7 @@ import {
   animate,
 } from "framer-motion";
 import { IoStar } from "react-icons/io5";
+import { audioManager } from "../audio/audioManager";
 
 interface ScoreDonutProps {
   score: number;
@@ -40,6 +41,7 @@ export function ScoreDonut({
     // Activate stars sequentially with staggered delays
     for (let i = 0; i < stars; i++) {
       setTimeout(() => {
+        audioManager.playStar(i);
         setActiveStars((prev) => {
           if (prev[i]) return prev;
           const next = [...prev];

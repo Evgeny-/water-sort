@@ -1,12 +1,14 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Game } from "./components/Game";
 import { LevelSelect } from "./components/LevelSelect";
 import { WorldBackground } from "./backgrounds/WorldBackground";
 import { createLevel } from "./game/levels";
+import { audioManager } from "./audio/audioManager";
 import type { Level, LevelResult } from "./game/types";
 
 const STORAGE_KEY_MAX = "water-sort-max-level";
 const STORAGE_KEY_RESULTS = "water-sort-results";
+const STORAGE_KEY_SPENT = "water-sort-spent-score";
 
 function loadMaxLevel(): number {
   try {
@@ -48,11 +50,27 @@ export default function App() {
   const [maxLevel, setMaxLevel] = useState(loadMaxLevel);
   const [screen, setScreen] = useState<Screen>({ kind: "select" });
   const [results, setResults] = useState(loadResults);
+  const [spentScore, setSpentScore] = useState(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY_SPENT);
+      return stored ? parseInt(stored, 10) || 0 : 0;
+    } catch { return 0; }
+  });
 
-  const totalScore = useMemo(
+  const earnedScore = useMemo(
     () => Object.values(results).reduce((sum, r) => sum + r.score, 0),
     [results],
   );
+
+  const totalScore = earnedScore - spentScore;
+
+  const spendScore = useCallback((amount: number) => {
+    setSpentScore((prev) => {
+      const next = prev + amount;
+      try { localStorage.setItem(STORAGE_KEY_SPENT, String(next)); } catch {}
+      return next;
+    });
+  }, []);
 
   const handleLevelComplete = useCallback(
     (levelNumber: number, stars: number, score: number) => {
@@ -101,6 +119,19 @@ export default function App() {
     setScreen({ kind: "select" });
   }, []);
 
+  // Initialize audio on first user interaction (required for iOS)
+  useEffect(() => {
+    const handleFirstInteraction = () => {
+      audioManager.ensureContext();
+    };
+    document.addEventListener("touchstart", handleFirstInteraction, { once: true });
+    document.addEventListener("click", handleFirstInteraction, { once: true });
+    return () => {
+      document.removeEventListener("touchstart", handleFirstInteraction);
+      document.removeEventListener("click", handleFirstInteraction);
+    };
+  }, []);
+
   const currentLevel =
     screen.kind === "game"
       ? screen.level.levelNumber
@@ -119,6 +150,10 @@ export default function App() {
             initialLockedMask={screen.level.lockedMask}
             levelNumber={screen.level.levelNumber}
             par={screen.level.par}
+            paidTubes={screen.level.paidTubes}
+            tubeCost={screen.level.tubeCost}
+            totalScore={totalScore}
+            onSpendScore={spendScore}
             onNewLevel={handleNewLevel}
             onBack={handleBack}
             onLevelComplete={handleLevelComplete}

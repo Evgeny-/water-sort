@@ -2,6 +2,7 @@ export interface ScoreBreakdown {
   base: number;
   efficiency: number;
   undoFine: number;
+  bottleFine: number;
   score: number;
   maxScore: number;
   stars: number;
@@ -12,6 +13,7 @@ export function calculateScore(
   par: number,
   undoCount: number,
   level: number,
+  extraBottles: number = 0,
 ): ScoreBreakdown {
   const base = 100 + (level - 1) * 10;
 
@@ -24,9 +26,14 @@ export function calculateScore(
     ? Math.min(Math.round(base * 0.05) * undoCount, Math.round(base * 0.5))
     : 0;
 
-  const score = Math.max(0, base + efficiency - undoFine);
+  // Bottle fine: 10% of base per extra bottle bought
+  const bottleFine = extraBottles > 0
+    ? Math.round(base * 0.1) * extraBottles
+    : 0;
 
-  // Max possible score: par moves, no undos
+  const score = Math.max(0, base + efficiency - undoFine - bottleFine);
+
+  // Max possible score: par moves, no undos, no extra bottles
   const maxScore = base;
 
   // Star rating based on score % of max
@@ -44,6 +51,7 @@ export function calculateScore(
     base,
     efficiency,
     undoFine,
+    bottleFine,
     score,
     maxScore,
     stars,

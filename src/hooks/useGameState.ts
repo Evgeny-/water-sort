@@ -133,15 +133,26 @@ export function useGameState(initialTubes: Tube[], initialLockedMask: boolean[][
     });
   }, []);
 
+  const unlockPaidTube = useCallback((index: number) => {
+    setState((prev) => {
+      if (prev.unlockedPaidTubes.has(index)) return prev;
+      const next = new Set(prev.unlockedPaidTubes);
+      next.add(index);
+      return { ...prev, unlockedPaidTubes: next };
+    });
+  }, []);
+
   const restart = useCallback(() => {
     setState((prev) => ({
       ...createGameState(initialTubes, initialLockedMask),
       restartCount: prev.restartCount + 1,
+      // Preserve paid tube unlocks across restarts (player already spent score)
+      unlockedPaidTubes: prev.unlockedPaidTubes,
     }));
   }, [initialTubes, initialLockedMask]);
 
   const levelComplete = isLevelComplete(state.tubes, state.lockedMask);
   const stuck = !levelComplete && checkStuck(state.tubes, state.lockedMask);
 
-  return { state, selectTube, commitPour, finishPourAnim, undo, restart, levelComplete, stuck };
+  return { state, selectTube, unlockPaidTube, commitPour, finishPourAnim, undo, restart, levelComplete, stuck };
 }

@@ -2,6 +2,7 @@ import { useRef, useEffect, useCallback, useState } from "react";
 import { motion } from "framer-motion";
 import { type Tube as TubeType, TUBE_CAPACITY, COLORS } from "../game/types";
 import { isTubeComplete } from "../game/engine";
+import { audioManager } from "../audio/audioManager";
 
 /*
  * Bottle geometry (all values in px, 0,0 = top-left of the SVG viewBox)
@@ -373,6 +374,15 @@ export function Tube({
   const clipId = `bottle-clip-${Math.random().toString(36).slice(2, 9)}`;
   // Random phase offset so each bottle's idle wave is out of sync
   const wavePhase = useRef(Math.random() * Math.PI * 2).current;
+
+  // Play chime when tube becomes complete
+  const prevCompleteRef = useRef(complete);
+  useEffect(() => {
+    if (complete && !prevCompleteRef.current) {
+      audioManager.playTubeComplete();
+    }
+    prevCompleteRef.current = complete;
+  }, [complete]);
 
   // Track which segments just got revealed (locked → unlocked).
   // When the tube is hidden (behind pour overlay), we accumulate pending

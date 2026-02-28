@@ -1,6 +1,8 @@
 import { motion } from "framer-motion";
-import { IoStar } from "react-icons/io5";
+import { IoStar, IoDownloadOutline } from "react-icons/io5";
 import type { LevelResult } from "../game/types";
+import { audioManager } from "../audio/audioManager";
+import { useInstallPrompt } from "../hooks/useInstallPrompt";
 
 interface LevelSelectProps {
   maxLevel: number;
@@ -13,6 +15,7 @@ const TOTAL_LEVELS = 200;
 
 export function LevelSelect({ maxLevel, results, totalScore, onSelect }: LevelSelectProps) {
   const levels = Array.from({ length: TOTAL_LEVELS }, (_, i) => i + 1);
+  const { canInstall, install } = useInstallPrompt();
 
   return (
     <div style={styles.container}>
@@ -20,6 +23,16 @@ export function LevelSelect({ maxLevel, results, totalScore, onSelect }: LevelSe
       <p style={styles.subtitle}>Choose a level</p>
       {totalScore > 0 && (
         <p className="score-badge" style={styles.totalScore}><IoStar /> {totalScore}</p>
+      )}
+      {canInstall && (
+        <motion.button
+          className="btn"
+          style={styles.installBtn}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => { audioManager.playButtonClick(); install(); }}
+        >
+          <IoDownloadOutline style={{ fontSize: 18 }} /> Install App
+        </motion.button>
       )}
 
       <div style={styles.scrollArea}>
@@ -34,7 +47,7 @@ export function LevelSelect({ maxLevel, results, totalScore, onSelect }: LevelSe
                 key={n}
                 className={`btn btn-level${isCurrent ? " current" : ""}`}
                 whileTap={{ scale: 0.92 }}
-                onClick={() => onSelect(n)}
+                onClick={() => { audioManager.playButtonClick(); onSelect(n); }}
               >
                 <span>{n}</span>
                 {result && (
@@ -83,6 +96,19 @@ const styles: Record<string, React.CSSProperties> = {
     textAlign: "center" as const,
     marginBottom: 16,
     margin: "0 auto 16px",
+  },
+  installBtn: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    margin: "0 auto 12px",
+    padding: "8px 20px",
+    fontSize: 14,
+    borderRadius: 20,
+    background: "rgba(41, 121, 229, 0.25)",
+    border: "1px solid rgba(41, 121, 229, 0.5)",
+    color: "#93c5fd",
+    cursor: "pointer",
   },
   scrollArea: {
     flex: 1,

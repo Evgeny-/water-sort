@@ -146,5 +146,6 @@ export function createGameState(
     invalidTube: null,
     pourAnim: null,
     lockedMask: initialMask,
+    unlockedPaidTubes: new Set(),
   };
 }

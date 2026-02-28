@@ -22,6 +22,10 @@ export interface Level {
   levelNumber: number;
   /** Per-tube, per-segment locked mask (true = hidden). Parallel to tubes. */
   lockedMask: boolean[][];
+  /** Number of empty tubes at the end that require spending score to unlock */
+  paidTubes: number;
+  /** Score cost to unlock one paid tube */
+  tubeCost: number;
 }
 
 /** Data needed to drive the pour animation overlay */
@@ -54,6 +58,8 @@ export interface GameState {
   pourAnim: PourAnimation | null;
   /** Per-tube, per-segment locked mask — revealed as segments are poured away */
   lockedMask: boolean[][];
+  /** Set of paid tube indices that have been unlocked by spending score */
+  unlockedPaidTubes: Set<number>;
 }
 
 /** Color palette — 7 maximally distinct game colors */

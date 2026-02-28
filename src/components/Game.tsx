@@ -1,10 +1,12 @@
 import { useRef, useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { IoArrowBack, IoArrowUndo, IoRefresh } from "react-icons/io5";
+import { IoArrowBack, IoArrowUndo, IoRefresh, IoVolumeHigh, IoVolumeMute, IoStar, IoLockClosed } from "react-icons/io5";
 import { Tube } from "./Tube";
 import { PourAnimationOverlay } from "./PourAnimationOverlay";
 import { LevelCompleteOverlay } from "./LevelCompleteOverlay";
 import { useGameState } from "../hooks/useGameState";
+import { useAudio } from "../hooks/useAudio";
+import { audioManager } from "../audio/audioManager";
 import { calculateScore } from "../game/scoring";
 import type { ScoreBreakdown } from "../game/scoring";
 import type { Tube as TubeType } from "../game/types";
@@ -68,16 +70,84 @@ interface GameProps {
   initialLockedMask: boolean[][];
   levelNumber: number;
   par: number;
+  paidTubes: number;
+  tubeCost: number;
+  totalScore: number;
+  onSpendScore: (amount: number) => void;
   onNewLevel: () => void;
   onBack: () => void;
   onLevelComplete: (levelNumber: number, stars: number, score: number) => void;
 }
 
-export function Game({ initialTubes, initialLockedMask, levelNumber, par, onNewLevel, onBack, onLevelComplete }: GameProps) {
-  const { state, selectTube, commitPour, finishPourAnim, undo, restart, levelComplete, stuck } =
+export function Game({ initialTubes, initialLockedMask, levelNumber, par, paidTubes, tubeCost, totalScore, onSpendScore, onNewLevel, onBack, onLevelComplete }: GameProps) {
+  const { state, selectTube, unlockPaidTube, commitPour, finishPourAnim, undo, restart, levelComplete, stuck } =
     useGameState(initialTubes, initialLockedMask);
+  const { sfxMuted, toggleSfxMute } = useAudio();
+
+  // Paid tube indices are the last N tubes in the array
+  const paidTubeStart = initialTubes.length - paidTubes;
+  const isPaidTube = (i: number) => i >= paidTubeStart;
+  const isPaidLocked = (i: number) => isPaidTube(i) && !state.unlockedPaidTubes.has(i);
+  const hasLockedPaidTubes = Array.from({ length: paidTubes }, (_, k) => paidTubeStart + k).some(isPaidLocked);
+  const canAfford = totalScore >= tubeCost;
+
+  // Confirmation dialog state
+  const [showBuyConfirm, setShowBuyConfirm] = useState(false);
+
+  const handleBuyTube = useCallback(() => {
+    audioManager.playButtonClick();
+    setShowBuyConfirm(true);
+  }, []);
+
+  const confirmBuyTube = useCallback(() => {
+    // Find the first locked paid tube and unlock it
+    for (let i = paidTubeStart; i < initialTubes.length; i++) {
+      if (!state.unlockedPaidTubes.has(i)) {
+        onSpendScore(tubeCost);
+        unlockPaidTube(i);
+        break;
+      }
+    }
+    setShowBuyConfirm(false);
+    audioManager.playButtonClick();
+  }, [paidTubeStart, initialTubes.length, state.unlockedPaidTubes, onSpendScore, tubeCost, unlockPaidTube]);
+
+  const cancelBuyTube = useCallback(() => {
+    setShowBuyConfirm(false);
+    audioManager.playButtonClick();
+  }, []);
 
   const isAnimating = state.pourAnim !== null;
+
+  // --- Audio triggers ---
+
+  // Play invalid sound when a tube shakes
+  const prevInvalidRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (state.invalidTube !== null && state.invalidTube !== prevInvalidRef.current) {
+      audioManager.playInvalid();
+    }
+    prevInvalidRef.current = state.invalidTube;
+  }, [state.invalidTube]);
+
+  // Play pour sound when pour animation starts
+  const prevPourRef = useRef(false);
+  useEffect(() => {
+    if (state.pourAnim && !prevPourRef.current) {
+      const duration = 100 + state.pourAnim.count * 100;
+      audioManager.playPour(duration);
+    }
+    prevPourRef.current = state.pourAnim !== null;
+  }, [state.pourAnim]);
+
+  // Play level complete fanfare
+  const prevCompleteRef = useRef(false);
+  useEffect(() => {
+    if (levelComplete && !prevCompleteRef.current) {
+      audioManager.playLevelComplete();
+    }
+    prevCompleteRef.current = levelComplete;
+  }, [levelComplete]);
 
   const boardRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -86,11 +156,14 @@ export function Game({ initialTubes, initialLockedMask, levelNumber, par, onNewL
     cols: state.tubes.length, rows: 1, scale: 1, gridW: 0, gridH: 0,
   });
 
+  // Count only visible tubes for layout (exclude locked paid tubes)
+  const visibleTubeCount = state.tubes.filter((_, i) => !isPaidLocked(i)).length;
+
   const updateLayout = useCallback(() => {
     const el = boardRef.current;
     if (!el) return;
-    setLayout(computeLayout(state.tubes.length, el.clientWidth, el.clientHeight));
-  }, [state.tubes.length]);
+    setLayout(computeLayout(visibleTubeCount, el.clientWidth, el.clientHeight));
+  }, [visibleTubeCount]);
 
   useEffect(() => {
     updateLayout();
@@ -111,8 +184,14 @@ export function Game({ initialTubes, initialLockedMask, levelNumber, par, onNewL
     const score = Math.max(0, base + efficiency - undoFine);
     const pct = base > 0 ? score / base : 0;
     const stars = pct >= 0.85 ? 3 : pct >= 0.5 ? 2 : 1;
-    setDevSkipResult({ base, efficiency, undoFine, score, maxScore: base, stars });
+    setDevSkipResult({ base, efficiency, undoFine, bottleFine: 0, score, maxScore: base, stars });
   }, [levelNumber]);
+
+  const handleRetry = useCallback(() => {
+    setDevSkipResult(null);
+    reportedRef.current = false;
+    restart();
+  }, [restart]);
 
   const scoreResult = levelComplete
     ? calculateScore(
@@ -120,6 +199,7 @@ export function Game({ initialTubes, initialLockedMask, levelNumber, par, onNewL
         par,
         state.undoCount,
         levelNumber,
+        state.unlockedPaidTubes.size,
       )
     : devSkipResult;
 
@@ -139,14 +219,24 @@ export function Game({ initialTubes, initialLockedMask, levelNumber, par, onNewL
       {/* Header */}
       <div style={styles.header}>
         <div style={styles.headerLeft}>
-          <button onClick={onBack} className="btn btn-icon">
+          <button onClick={() => { audioManager.playButtonClick(); onBack(); }} className="btn btn-icon">
             <IoArrowBack />
           </button>
           <span style={styles.levelLabel}>Level {levelNumber}</span>
+          {totalScore > 0 && (
+            <span className="score-badge" style={{ fontSize: 12, padding: "2px 8px" }}>
+              <IoStar style={{ fontSize: 10, color: "#eab308" }} /> {totalScore}
+            </span>
+          )}
         </div>
-        <span className="score-badge">
-          {state.moves.length} / {par}
-        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <button onClick={toggleSfxMute} className="btn btn-icon" style={{ fontSize: 18 }}>
+            {sfxMuted ? <IoVolumeMute /> : <IoVolumeHigh />}
+          </button>
+          <span className="score-badge">
+            {state.moves.length} / {par}
+          </span>
+        </div>
       </div>
 
       {/* Game board */}
@@ -165,19 +255,20 @@ export function Game({ initialTubes, initialLockedMask, levelNumber, par, onNewL
             position: "relative",
           }}>
             {state.tubes.map((tube, i) => {
+              if (isPaidLocked(i)) return null;
               const isAnimSource = state.pourAnim?.fromIndex === i;
 
               return (
                 <div
                   key={i}
                   ref={(el) => { tubeRefs.current[i] = el; }}
-                  style={{ opacity: isAnimSource ? 0 : 1 }}
+                  style={{ opacity: isAnimSource ? 0 : 1, position: "relative" }}
                 >
                   <Tube
                     tube={tube}
                     selected={state.selectedTube === i}
                     invalid={state.invalidTube === i}
-                    onClick={() => selectTube(i)}
+                    onClick={() => { audioManager.playTap(); selectTube(i); }}
                     lockedMask={state.lockedMask[i]}
                     hidden={isAnimSource}
                   />
@@ -217,25 +308,72 @@ export function Game({ initialTubes, initialLockedMask, levelNumber, par, onNewL
       {/* Controls */}
       <div style={styles.controls}>
         <button
-          onClick={undo}
+          onClick={() => { audioManager.playUndo(); undo(); }}
           className="btn btn-control"
           disabled={state.moves.length === 0 || showComplete || isAnimating}
         >
           <IoArrowUndo /> Undo
         </button>
         <button
-          onClick={restart}
+          onClick={() => { audioManager.playButtonClick(); restart(); }}
           className="btn btn-control"
           disabled={state.moves.length === 0 || showComplete || isAnimating}
         >
           <IoRefresh /> Restart
         </button>
+        {hasLockedPaidTubes && !showComplete && (
+          <button
+            onClick={handleBuyTube}
+            className="btn btn-control"
+            disabled={!canAfford || isAnimating}
+            style={{ color: canAfford ? "#fde68a" : undefined }}
+          >
+            <IoLockClosed /> +Bottle <IoStar style={{ fontSize: 10, color: "#eab308" }} />{tubeCost}
+          </button>
+        )}
         {IS_DEV && !showComplete && (
           <button onClick={devSkipLevel} className="btn btn-control" style={{ opacity: 0.5, fontSize: 11 }}>
             Skip
           </button>
         )}
       </div>
+
+      {/* Buy bottle confirmation */}
+      <AnimatePresence>
+        {showBuyConfirm && (
+          <motion.div
+            style={styles.confirmBackdrop}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={cancelBuyTube}
+          >
+            <motion.div
+              style={styles.confirmDialog}
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <p style={styles.confirmTitle}>Unlock extra bottle?</p>
+              <p style={styles.confirmCost}>
+                <IoStar style={{ fontSize: 14, color: "#eab308" }} /> {tubeCost} points
+              </p>
+              <p style={styles.confirmBalance}>
+                Your balance: <IoStar style={{ fontSize: 12, color: "#eab308" }} /> {totalScore}
+                {" → "}
+                <IoStar style={{ fontSize: 12, color: "#eab308" }} /> {totalScore - tubeCost}
+              </p>
+              <div style={styles.confirmButtons}>
+                <button onClick={cancelBuyTube} className="btn btn-control">Cancel</button>
+                <button onClick={confirmBuyTube} className="btn btn-control" style={{ color: "#fde68a" }}>
+                  <IoLockClosed /> Unlock
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Level complete overlay */}
       <AnimatePresence>
@@ -245,7 +383,7 @@ export function Game({ initialTubes, initialLockedMask, levelNumber, par, onNewL
             par={par}
             moves={state.moves.length}
             onNewLevel={onNewLevel}
-            onRetry={restart}
+            onRetry={handleRetry}
           />
         )}
       </AnimatePresence>
@@ -304,5 +442,51 @@ const styles: Record<string, React.CSSProperties> = {
     color: "#f87171",
     fontSize: 14,
     fontWeight: 500,
+  },
+  confirmBackdrop: {
+    position: "fixed" as const,
+    inset: 0,
+    background: "rgba(0, 0, 0, 0.6)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 100,
+  },
+  confirmDialog: {
+    background: "#1e293b",
+    border: "1px solid rgba(148, 163, 184, 0.3)",
+    borderRadius: 16,
+    padding: "24px 28px",
+    textAlign: "center" as const,
+    maxWidth: 300,
+  },
+  confirmTitle: {
+    fontSize: 18,
+    fontWeight: 700,
+    marginBottom: 8,
+  },
+  confirmCost: {
+    fontSize: 16,
+    fontWeight: 600,
+    color: "#fde68a",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    marginBottom: 4,
+  },
+  confirmBalance: {
+    fontSize: 13,
+    color: "#94a3b8",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    marginBottom: 20,
+  },
+  confirmButtons: {
+    display: "flex",
+    gap: 12,
+    justifyContent: "center",
   },
 };

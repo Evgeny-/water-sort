@@ -45,6 +45,13 @@ export function LevelCompleteOverlay({
       color: "#f87171",
     });
   }
+  if (scoreResult.bottleFine > 0) {
+    breakdownLines.push({
+      label: "Extra bottle",
+      value: `-${scoreResult.bottleFine}`,
+      color: "#f87171",
+    });
+  }
 
   return (
     <motion.div

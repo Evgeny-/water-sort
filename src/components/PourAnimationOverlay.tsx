@@ -365,14 +365,16 @@ function WaterStream({
         </g>
 
         {/* Small splash drops at destination */}
-        {phase === "pouring" && (
+        {phase === "pouring" && isFinite(lx2) && isFinite(ly2) && (
           <>
             <motion.circle
-              cx={lx2 - 4}
-              cy={ly2}
               r={1.5}
               fill={color}
-              opacity={0.6}
+              initial={{
+                cx: lx2 - 4,
+                cy: ly2,
+                opacity: 0,
+              }}
               animate={{
                 cy: [ly2, ly2 - 6, ly2],
                 cx: [lx2 - 4, lx2 - 7, lx2 - 4],
@@ -385,11 +387,13 @@ function WaterStream({
               }}
             />
             <motion.circle
-              cx={lx2 + 4}
-              cy={ly2}
               r={1}
               fill={color}
-              opacity={0.5}
+              initial={{
+                cx: lx2 + 4,
+                cy: ly2,
+                opacity: 0,
+              }}
               animate={{
                 cy: [ly2, ly2 - 5, ly2],
                 cx: [lx2 + 4, lx2 + 6, lx2 + 4],
