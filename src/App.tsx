@@ -44,7 +44,7 @@ function loadResults(): Record<string, LevelResult> {
   return {};
 }
 
-type Screen = { kind: "select" } | { kind: "game"; level: Level };
+type Screen = { kind: "select" } | { kind: "loading"; levelNumber: number } | { kind: "game"; level: Level };
 
 export default function App() {
   const [maxLevel, setMaxLevel] = useState(loadMaxLevel);
@@ -100,8 +100,12 @@ export default function App() {
 
   const startLevel = useCallback(
     (levelNumber: number) => {
-      const level = createLevel(levelNumber);
-      setScreen({ kind: "game", level });
+      // Show loading state, then generate level off the current frame
+      setScreen({ kind: "loading", levelNumber });
+      setTimeout(() => {
+        const level = createLevel(levelNumber);
+        setScreen({ kind: "game", level });
+      }, 0);
     },
     [],
   );
@@ -110,9 +114,16 @@ export default function App() {
     setScreen((prev) => {
       if (prev.kind !== "game") return prev;
       const nextNum = prev.level.levelNumber + 1;
-      const next = createLevel(nextNum);
-      return { kind: "game", level: next };
+      return { kind: "loading", levelNumber: nextNum };
     });
+    // Defer level generation to next frame
+    setTimeout(() => {
+      setScreen((prev) => {
+        if (prev.kind !== "loading") return prev;
+        const level = createLevel(prev.levelNumber);
+        return { kind: "game", level };
+      });
+    }, 0);
   }, []);
 
   const handleBack = useCallback(() => {
@@ -135,7 +146,9 @@ export default function App() {
   const currentLevel =
     screen.kind === "game"
       ? screen.level.levelNumber
-      : maxLevel;
+      : screen.kind === "loading"
+        ? screen.levelNumber
+        : maxLevel;
 
   return (
     <>
@@ -143,6 +156,12 @@ export default function App() {
       <div style={{ position: "relative", zIndex: 1, flex: 1, display: "flex", flexDirection: "column" as const, minHeight: 0 }}>
         {screen.kind === "select" ? (
           <LevelSelect maxLevel={maxLevel} results={results} totalScore={totalScore} onSelect={startLevel} />
+        ) : screen.kind === "loading" ? (
+          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <span style={{ fontSize: 18, fontWeight: 600, color: "var(--text-secondary)" }}>
+              Loading level {screen.levelNumber}...
+            </span>
+          </div>
         ) : (
           <Game
             key={screen.level.levelNumber}
