@@ -61,6 +61,24 @@ export interface SolveResult {
   par: number;
 }
 
+/** Extended metrics for difficulty analysis */
+export interface SolveMetrics {
+  solvable: boolean;
+  par: number;
+  /** Total unique states explored by BFS */
+  statesExplored: number;
+  /** Total valid moves generated across all states (before dedup) */
+  totalMoves: number;
+  /** Average branching factor (totalMoves / statesExplored) */
+  avgBranching: number;
+  /** Number of states that are dead ends (no valid moves, not solved) */
+  deadEnds: number;
+  /** dead ends / states explored */
+  deadEndRatio: number;
+  /** Whether solver hit the state limit */
+  hitLimit: boolean;
+}
+
 /**
  * BFS solver: finds the minimum number of moves to solve a level.
  * Returns null if the state space is too large to search exhaustively.
@@ -141,4 +159,106 @@ export function solve(tubes: Tube[]): SolveResult | null {
   }
 
   return { solvable: false, par: 0 };
+}
+
+/**
+ * BFS solver that also collects difficulty metrics.
+ * Explores the full reachable state space (up to MAX_STATES) to measure
+ * how constrained/trappy a puzzle is.
+ */
+export function solveWithMetrics(tubes: Tube[]): SolveMetrics {
+  if (isLevelComplete(tubes)) {
+    return {
+      solvable: true, par: 0, statesExplored: 1, totalMoves: 0,
+      avgBranching: 0, deadEnds: 0, deadEndRatio: 0, hitLimit: false,
+    };
+  }
+
+  const visited = new Set<string>();
+  visited.add(hashState(tubes));
+
+  let queue: Tube[][] = [tubes];
+  let depth = 0;
+  let par = -1;
+  let totalMoves = 0;
+  let deadEnds = 0;
+  let hitLimit = false;
+
+  while (queue.length > 0) {
+    depth++;
+    const nextQueue: Tube[][] = [];
+
+    for (const state of queue) {
+      let movesFromState = 0;
+
+      for (let from = 0; from < state.length; from++) {
+        const src = state[from]!;
+        if (src.length === 0) continue;
+        if (
+          src.length === TUBE_CAPACITY &&
+          src.every((c) => c === src[0])
+        ) continue;
+
+        const srcTop = src[src.length - 1]!;
+        let srcTopCount = 1;
+        for (let k = src.length - 2; k >= 0; k--) {
+          if (src[k] === srcTop) srcTopCount++;
+          else break;
+        }
+
+        for (let to = 0; to < state.length; to++) {
+          if (from === to) continue;
+          const dst = state[to]!;
+          if (dst.length >= TUBE_CAPACITY) continue;
+          if (dst.length > 0 && dst[dst.length - 1] !== srcTop) continue;
+          if (dst.length === 0 && srcTopCount === src.length) continue;
+          if (dst.length === 0) {
+            let firstEmpty = -1;
+            for (let e = 0; e < state.length; e++) {
+              if (state[e]!.length === 0) { firstEmpty = e; break; }
+            }
+            if (to !== firstEmpty) continue;
+          }
+
+          movesFromState++;
+          const next = solverPour(state, from, to);
+
+          if (par < 0 && isLevelComplete(next)) {
+            par = depth;
+          }
+
+          const hash = hashState(next);
+          if (!visited.has(hash)) {
+            visited.add(hash);
+            nextQueue.push(next);
+          }
+        }
+
+        if (visited.size > MAX_STATES) {
+          hitLimit = true;
+          break;
+        }
+      }
+
+      totalMoves += movesFromState;
+      if (movesFromState === 0) deadEnds++;
+
+      if (hitLimit) break;
+    }
+
+    if (hitLimit) break;
+    queue = nextQueue;
+  }
+
+  const statesExplored = visited.size;
+  return {
+    solvable: par >= 0,
+    par: par >= 0 ? par : 0,
+    statesExplored,
+    totalMoves,
+    avgBranching: statesExplored > 0 ? totalMoves / statesExplored : 0,
+    deadEnds,
+    deadEndRatio: statesExplored > 0 ? deadEnds / statesExplored : 0,
+    hitLimit,
+  };
 }
