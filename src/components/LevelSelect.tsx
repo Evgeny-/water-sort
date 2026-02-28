@@ -1,0 +1,96 @@
+import { motion } from "framer-motion";
+
+interface LevelSelectProps {
+  maxLevel: number;
+  onSelect: (level: number) => void;
+}
+
+const TOTAL_LEVELS = 200;
+
+export function LevelSelect({ maxLevel, onSelect }: LevelSelectProps) {
+  const levels = Array.from({ length: TOTAL_LEVELS }, (_, i) => i + 1);
+
+  return (
+    <div style={styles.container}>
+      <h1 style={styles.title}>Water Sort</h1>
+      <p style={styles.subtitle}>Choose a level</p>
+
+      <div style={styles.scrollArea}>
+        <div style={styles.grid}>
+          {levels.map((n) => {
+            const isCurrent = n === maxLevel;
+
+            return (
+              <motion.button
+                key={n}
+                whileTap={{ scale: 0.92 }}
+                onClick={() => onSelect(n)}
+                style={{
+                  ...styles.levelButton,
+                  ...(isCurrent ? styles.current : {}),
+                }}
+              >
+                {n}
+              </motion.button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const styles: Record<string, React.CSSProperties> = {
+  container: {
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
+    padding: "20px",
+    overflow: "hidden",
+    minHeight: 0,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 700,
+    textAlign: "center",
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: "var(--text-secondary)",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  scrollArea: {
+    flex: 1,
+    overflowY: "auto" as const,
+    WebkitOverflowScrolling: "touch" as const,
+    minHeight: 0,
+  },
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(5, 1fr)",
+    gap: 10,
+    maxWidth: 360,
+    margin: "0 auto",
+    paddingBottom: 20,
+  },
+  levelButton: {
+    aspectRatio: "1",
+    borderRadius: 12,
+    border: "1px solid var(--tube-glass-border)",
+    background: "var(--bg-secondary)",
+    color: "var(--text-primary)",
+    fontSize: 18,
+    fontWeight: 600,
+    cursor: "pointer",
+    fontFamily: "inherit",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  current: {
+    border: "2px solid #3b82f6",
+    boxShadow: "0 0 12px rgba(59, 130, 246, 0.3)",
+  },
+};
