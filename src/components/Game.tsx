@@ -18,14 +18,10 @@ import { audioManager } from "../audio/audioManager";
 import { calculateScore } from "../game/scoring";
 import type { ScoreBreakdown } from "../game/scoring";
 import type { Tube as TubeType } from "../game/types";
+import { getLayoutForLevel } from "../game/layouts";
 
 const IS_DEV = import.meta.env.DEV;
 
-// Tube pixel dimensions (must match Tube.tsx constants)
-const TUBE_W = 64;
-const TUBE_H = 176;
-const GAP_X = 16;
-const GAP_Y = 32;
 // Extra vertical room for selected-tube lift + wave
 const LIFT_PADDING = 28;
 // Max grid width so tubes don't spread into one wide row on desktop
@@ -34,49 +30,39 @@ const MAX_GRID_W = 480;
 const BOARD_PAD_X = 16;
 
 interface GridLayout {
-  cols: number;
-  rows: number;
+  positions: { x: number; y: number }[];
   scale: number;
-  gridW: number; // unscaled grid width
-  gridH: number; // unscaled grid height
+  gridW: number; // unscaled bounding box width
+  gridH: number; // unscaled bounding box height
 }
 
 /**
- * Compute the best grid layout so all tubes fill the available board area.
- * Tries different column counts and picks the one with the largest scale.
- * Returns the chosen layout so we can set explicit dimensions on the grid.
+ * Compute layout by selecting a creative pattern for the level,
+ * then scaling to fit the available board area.
  */
 function computeLayout(
   tubeCount: number,
   containerW: number,
   containerH: number,
+  levelNumber: number,
 ): GridLayout {
-  const fallback: GridLayout = {
-    cols: tubeCount,
-    rows: 1,
-    scale: 1,
-    gridW: 0,
-    gridH: 0,
-  };
+  const fallback: GridLayout = { positions: [], scale: 1, gridW: 0, gridH: 0 };
   if (tubeCount === 0 || containerW <= 0 || containerH <= 0) return fallback;
 
   const availW = Math.min(containerW - BOARD_PAD_X * 2, MAX_GRID_W);
   const availH = containerH - LIFT_PADDING;
-  let best: GridLayout = fallback;
+  const result = getLayoutForLevel(levelNumber, tubeCount, availW, availH);
 
-  for (let cols = 1; cols <= tubeCount; cols++) {
-    const rows = Math.ceil(tubeCount / cols);
-    const gridW = cols * TUBE_W + (cols - 1) * GAP_X;
-    const gridH = rows * TUBE_H + (rows - 1) * GAP_Y;
-    const scaleX = availW / gridW;
-    const scaleY = availH / gridH;
-    const scale = Math.min(scaleX, scaleY, 1); // never zoom above 1
-    if (scale > best.scale || best.gridW === 0) {
-      best = { cols, rows, scale, gridW, gridH };
-    }
-  }
+  const scaleX = availW / result.width;
+  const scaleY = availH / result.height;
+  const scale = Math.min(scaleX, scaleY, 1);
 
-  return best;
+  return {
+    positions: result.positions,
+    scale,
+    gridW: result.width,
+    gridH: result.height,
+  };
 }
 
 interface GameProps {
@@ -212,8 +198,7 @@ export function Game({
   const gridRef = useRef<HTMLDivElement>(null);
   const tubeRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [layout, setLayout] = useState<GridLayout>({
-    cols: state.tubes.length,
-    rows: 1,
+    positions: [],
     scale: 1,
     gridW: 0,
     gridH: 0,
@@ -228,8 +213,8 @@ export function Game({
   const updateLayout = useCallback(() => {
     const el = boardRef.current;
     if (!el) return;
-    setLayout(computeLayout(visibleTubeCount, el.clientWidth, el.clientHeight));
-  }, [visibleTubeCount]);
+    setLayout(computeLayout(visibleTubeCount, el.clientWidth, el.clientHeight, levelNumber));
+  }, [visibleTubeCount, levelNumber]);
 
   useEffect(() => {
     updateLayout();
@@ -347,37 +332,45 @@ export function Game({
               position: "relative",
             }}
           >
-            {state.tubes.map((tube, i) => {
-              if (isPaidLocked(i)) return null;
-              const isAnimSource = state.pourAnim?.fromIndex === i;
+            {(() => {
+              let visIdx = 0;
+              return state.tubes.map((tube, i) => {
+                if (isPaidLocked(i)) return null;
+                const pos = layout.positions[visIdx];
+                visIdx++;
+                if (!pos) return null;
+                const isAnimSource = state.pourAnim?.fromIndex === i;
 
-              return (
-                <div
-                  key={i}
-                  ref={(el) => {
-                    tubeRefs.current[i] = el;
-                  }}
-                  style={{
-                    opacity: isAnimSource ? 0 : 1,
-                    position: "relative",
-                  }}
-                >
-                  <Tube
-                    tube={tube}
-                    selected={state.selectedTube === i}
-                    invalid={state.invalidTube === i}
-                    onClick={() => {
-                      audioManager.playTap();
-                      selectTube(i);
+                return (
+                  <div
+                    key={i}
+                    ref={(el) => {
+                      tubeRefs.current[i] = el;
                     }}
-                    lockedMask={state.lockedMask[i]}
-                    hidden={isAnimSource}
-                    disableIdleWave={disableIdleWave}
-                    simplified={disableIdleWave}
-                  />
-                </div>
-              );
-            })}
+                    style={{
+                      position: "absolute",
+                      left: pos.x,
+                      top: pos.y,
+                      opacity: isAnimSource ? 0 : 1,
+                    }}
+                  >
+                    <Tube
+                      tube={tube}
+                      selected={state.selectedTube === i}
+                      invalid={state.invalidTube === i}
+                      onClick={() => {
+                        audioManager.playTap();
+                        selectTube(i);
+                      }}
+                      lockedMask={state.lockedMask[i]}
+                      hidden={isAnimSource}
+                      disableIdleWave={disableIdleWave}
+                      simplified={disableIdleWave}
+                    />
+                  </div>
+                );
+              });
+            })()}
 
             {/* Pour animation overlay — renders animated clone above the grid */}
             {state.pourAnim && (
@@ -548,12 +541,7 @@ const styles: Record<string, React.CSSProperties> = {
     overflow: "hidden",
   },
   tubesGrid: {
-    display: "flex",
-    gap: GAP_X,
-    flexWrap: "wrap" as const,
-    justifyContent: "center",
-    alignContent: "center",
-    rowGap: GAP_Y,
+    position: "relative" as const,
   },
   controls: {
     display: "flex",

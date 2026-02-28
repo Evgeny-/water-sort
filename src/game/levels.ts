@@ -19,95 +19,111 @@ interface DifficultyParams {
  * Every level always has exactly 1 paid tube to keep the mechanic consistent.
  */
 /**
- * Difficulty curve — designed so early levels generate fast and play easy,
- * progressing toward tighter puzzles with fewer empty tubes and more locked segments.
+ * Difficulty curve — designed so complexity genuinely increases with level.
  *
- * Key insight: fewer colors with fewer empty tubes = harder to solve AND slower to
- * generate (BFS solver explores huge state space). So we start with more colors /
- * more empties (easy, fast) and progress toward fewer empties / locked segments.
+ * Key levers (in order of impact):
+ *   emptyTubes ↓   — drastically reduces free space, hardest lever
+ *   tubesPerColor ↓ — fewer copies = tighter packing, harder puzzles
+ *   colors ↑        — more variety = more decisions
+ *   lockedPercentage ↑ — hidden info forces reactive play
+ *   paidTubes ↓     — less safety net
+ *
+ * We keep tubesPerColor at 2 throughout (the tightest setting) and scale
+ * difficulty primarily through colors, empty tubes, and locked percentage.
+ * This avoids the old problem where high tubesPerColor (3–5) gave players
+ * so many tubes of each color that puzzles became trivially easy.
  *
  * Filled tubes = colors × tubesPerColor. Solver runs when filled ≤ 8.
  */
 function getDifficulty(levelNumber: number): DifficultyParams {
-  // Levels 1–5: 5 colors × 2 tpc = 10 filled, 2 free empties (easy, no solver needed)
+  // Levels 1–5: 3 colors × 2 tpc = 6 filled, 2 empty — tutorial, very easy
   if (levelNumber <= 5)
     return {
-      colors: 5,
+      colors: 3,
+      tubesPerColor: 2,
+      emptyTubes: 2,
+      lockedPercentage: 0,
+      paidTubes: 1,
+    };
+  // Levels 6–12: 4 colors × 2 tpc = 8 filled, 2 empty — introduce more colors
+  if (levelNumber <= 12)
+    return {
+      colors: 4,
       tubesPerColor: 2,
       emptyTubes: 2,
       lockedPercentage: 0.1,
       paidTubes: 1,
     };
-  // Levels 6–12: 5 colors × 2 tpc = 10 filled, 2 free, introduce locks
-  if (levelNumber <= 12)
+  // Levels 13–20: 5 colors × 2 tpc = 10 filled, 2 empty — bigger board
+  if (levelNumber <= 20)
     return {
-      colors: 6,
+      colors: 5,
       tubesPerColor: 2,
       emptyTubes: 2,
       lockedPercentage: 0.15,
       paidTubes: 1,
     };
-  // Levels 13–20: 4 colors × 2 tpc = 8 filled, 2 free (solver can run, but fast with 2 empties)
-  if (levelNumber <= 20)
+  // Levels 21–35: 5 colors × 2 tpc = 10 filled, 1 empty — first big squeeze
+  if (levelNumber <= 35)
     return {
       colors: 5,
       tubesPerColor: 2,
       emptyTubes: 1,
-      lockedPercentage: 0.25,
+      lockedPercentage: 0.2,
       paidTubes: 1,
     };
-  // Levels 21–30: 4 colors × 2 tpc = 8 filled, 1 free (tighter, harder)
-  if (levelNumber <= 30)
-    return {
-      colors: 4,
-      tubesPerColor: 2,
-      emptyTubes: 1,
-      lockedPercentage: 0.35,
-      paidTubes: 1,
-    };
-  // Levels 31–50: 5 colors × 3 tpc = 15 filled, 2 free
+  // Levels 36–50: 6 colors × 2 tpc = 12 filled, 2 empty — more colors compensate for extra empty
   if (levelNumber <= 50)
     return {
-      colors: 5,
-      tubesPerColor: 3,
+      colors: 6,
+      tubesPerColor: 2,
       emptyTubes: 2,
-      lockedPercentage: 0.35,
+      lockedPercentage: 0.3,
       paidTubes: 1,
     };
-  // Levels 51–75: 6 colors × 3 tpc = 18 filled, 2 free
-  if (levelNumber <= 75)
+  // Levels 51–70: 6 colors × 2 tpc = 12 filled, 1 empty — tight with many colors
+  if (levelNumber <= 70)
     return {
       colors: 6,
-      tubesPerColor: 3,
-      emptyTubes: 2,
-      lockedPercentage: 0.45,
-      paidTubes: 2,
+      tubesPerColor: 2,
+      emptyTubes: 1,
+      lockedPercentage: 0.4,
+      paidTubes: 1,
     };
-  // Levels 76–105: 6 colors × 4 tpc = 24 filled, 2 free
-  if (levelNumber <= 105)
+  // Levels 71–90: 7 colors × 2 tpc = 14 filled, 2 empty — all colors, moderate space
+  if (levelNumber <= 90)
     return {
-      colors: 6,
-      tubesPerColor: 4,
+      colors: 7,
+      tubesPerColor: 2,
       emptyTubes: 2,
-      lockedPercentage: 0.55,
-      paidTubes: 2,
+      lockedPercentage: 0.5,
+      paidTubes: 1,
     };
-  // Levels 106–150: 7 colors × 4 tpc = 28 filled, 2 free
+  // Levels 91–120: 7 colors × 2 tpc = 14 filled, 1 empty — all colors, tight
+  if (levelNumber <= 120)
+    return {
+      colors: 7,
+      tubesPerColor: 2,
+      emptyTubes: 1,
+      lockedPercentage: 0.6,
+      paidTubes: 1,
+    };
+  // Levels 121–150: 7 colors × 2 tpc = 14 filled, 1 empty — heavy locks
   if (levelNumber <= 150)
     return {
       colors: 7,
-      tubesPerColor: 4,
-      emptyTubes: 2,
-      lockedPercentage: 0.65,
-      paidTubes: 2,
+      tubesPerColor: 2,
+      emptyTubes: 1,
+      lockedPercentage: 0.7,
+      paidTubes: 1,
     };
-  // 150+: 7 colors × 5 tpc = 35 filled, 2 free
+  // 150+: 7 colors × 2 tpc = 14 filled, 1 empty — maximum difficulty
   return {
     colors: 7,
-    tubesPerColor: 5,
-    emptyTubes: 2,
-    lockedPercentage: 0.85,
-    paidTubes: 2,
+    tubesPerColor: 2,
+    emptyTubes: 1,
+    lockedPercentage: 0.8,
+    paidTubes: 1,
   };
 }
 

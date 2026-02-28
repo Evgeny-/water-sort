@@ -146,6 +146,8 @@ button:disabled {
   align-items: center;
   justify-content: center;
   gap: 3px;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 60px;
 }
 .btn-level.current {
   border: 1.5px solid rgba(59, 130, 246, 0.5);

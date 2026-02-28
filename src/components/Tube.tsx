@@ -382,7 +382,9 @@ export function Tube({
 }: TubeProps) {
   const complete = isTubeComplete(tube, lockedMask);
   // Stable unique ID so SVG defs don't remount every render
-  const clipId = useRef(`bottle-clip-${Math.random().toString(36).slice(2, 9)}`).current;
+  const clipId = useRef(
+    `bottle-clip-${Math.random().toString(36).slice(2, 9)}`,
+  ).current;
   // Random phase offset so each bottle's idle wave is out of sync
   const wavePhase = useRef(Math.random() * Math.PI * 2).current;
 
@@ -500,10 +502,12 @@ export function Tube({
         height: TOTAL_HEIGHT,
         position: "relative",
         cursor: complete ? "default" : "pointer",
+        opacity: complete ? 0.35 : 1,
         transform: selected
           ? "translateY(-20px) scale(1.05)"
           : "translateY(0) scale(1)",
-        transition: "transform 0.2s cubic-bezier(0.22, 1, 0.36, 1)",
+        transition:
+          "transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.5s ease",
         filter: complete
           ? "drop-shadow(0 0 12px rgba(34, 197, 94, 0.3))"
           : selected
@@ -656,8 +660,8 @@ export function Tube({
                     fill={baseColor}
                   />
                 )}
-                {isLocked && (
-                  simplified ? (
+                {isLocked &&
+                  (simplified ? (
                     <text
                       x={segCenterX}
                       y={segCenterY}
@@ -685,8 +689,7 @@ export function Tube({
                     >
                       ?
                     </motion.text>
-                  )
-                )}
+                  ))}
                 {isRevealing && !simplified && (
                   <motion.text
                     x={segCenterX}
@@ -714,24 +717,24 @@ export function Tube({
         <path d={BOTTLE_PATH} fill="url(#glassShadow)" />
 
         {/* Extra glass details — skip when simplified for performance */}
-        {!simplified && (
-          <>
-            <rect
-              x={4}
-              y={NECK_HEIGHT + SHOULDER_HEIGHT}
-              width={3}
-              height={BODY_HEIGHT - 8}
-              rx={1.5}
-              fill="url(#glintGrad)"
-            />
-            <circle
-              cx={10}
-              cy={NECK_HEIGHT + SHOULDER_HEIGHT}
-              r={3}
-              fill="rgba(255,255,255,0.2)"
-            />
-          </>
-        )}
+        {/* {!simplified && ( */}
+        <>
+          <rect
+            x={4}
+            y={NECK_HEIGHT + SHOULDER_HEIGHT}
+            width={3}
+            height={BODY_HEIGHT - 8}
+            rx={1.5}
+            fill="url(#glintGrad)"
+          />
+          <circle
+            cx={10}
+            cy={NECK_HEIGHT + SHOULDER_HEIGHT}
+            r={3}
+            fill="rgba(255,255,255,0.2)"
+          />
+        </>
+        {/* )} */}
 
         {/* Bottle outline */}
         <path

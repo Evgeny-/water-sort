@@ -6,7 +6,11 @@
 /** Minimal UI tick — very short filtered noise click, like a soft finger tap */
 export function playTap(ctx: AudioContext, dest: AudioNode) {
   const t = ctx.currentTime;
-  const buf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * 0.025), ctx.sampleRate);
+  const buf = ctx.createBuffer(
+    1,
+    Math.ceil(ctx.sampleRate * 0.025),
+    ctx.sampleRate,
+  );
   const d = buf.getChannelData(0);
   for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
   const noise = ctx.createBufferSource();
@@ -21,11 +25,19 @@ export function playTap(ctx: AudioContext, dest: AudioNode) {
   noise.connect(bp).connect(gain).connect(dest);
   noise.start(t);
   noise.stop(t + 0.025);
-  noise.onended = () => { noise.disconnect(); bp.disconnect(); gain.disconnect(); };
+  noise.onended = () => {
+    noise.disconnect();
+    bp.disconnect();
+    gain.disconnect();
+  };
 }
 
 /** Cartoonish "bloop-bloop" pour — bouncy descending blobs */
-export function playPour(ctx: AudioContext, dest: AudioNode, durationMs: number) {
+export function playPour(
+  ctx: AudioContext,
+  dest: AudioNode,
+  durationMs: number,
+) {
   const t = ctx.currentTime;
   const duration = Math.min(durationMs / 1000, 1.0);
 
@@ -42,17 +54,23 @@ export function playPour(ctx: AudioContext, dest: AudioNode, durationMs: number)
     osc.type = "sine";
     // Each bloop drops in pitch quickly for a bubbly cartoon feel
     osc.frequency.setValueAtTime(freq, bTime);
-    osc.frequency.exponentialRampToValueAtTime(freq * 0.55, bTime + interval * 0.7);
+    osc.frequency.exponentialRampToValueAtTime(
+      freq * 0.75,
+      bTime + interval * 0.7,
+    );
 
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(0, bTime);
-    gain.gain.linearRampToValueAtTime(0.1, bTime + 0.005);
-    gain.gain.exponentialRampToValueAtTime(0.001, bTime + interval * 0.85);
+    gain.gain.linearRampToValueAtTime(0.1, bTime + 0.001);
+    gain.gain.exponentialRampToValueAtTime(0.001, bTime + interval * 0.55);
 
     osc.connect(gain).connect(dest);
     osc.start(bTime);
     osc.stop(bTime + interval + 0.01);
-    osc.onended = () => { osc.disconnect(); gain.disconnect(); };
+    osc.onended = () => {
+      osc.disconnect();
+      gain.disconnect();
+    };
   }
 }
 
@@ -69,7 +87,10 @@ export function playInvalid(ctx: AudioContext, dest: AudioNode) {
     osc.connect(gain).connect(dest);
     osc.start(start);
     osc.stop(start + 0.06);
-    osc.onended = () => { osc.disconnect(); gain.disconnect(); };
+    osc.onended = () => {
+      osc.disconnect();
+      gain.disconnect();
+    };
   }
 }
 
@@ -88,7 +109,10 @@ export function playTubeComplete(ctx: AudioContext, dest: AudioNode) {
     osc.connect(gain).connect(dest);
     osc.start(start);
     osc.stop(start + 0.25);
-    osc.onended = () => { osc.disconnect(); gain.disconnect(); };
+    osc.onended = () => {
+      osc.disconnect();
+      gain.disconnect();
+    };
   });
 }
 
@@ -110,7 +134,10 @@ export function playLevelComplete(ctx: AudioContext, dest: AudioNode) {
     osc.connect(gain).connect(dest);
     osc.start(start);
     osc.stop(start + 0.5);
-    osc.onended = () => { osc.disconnect(); gain.disconnect(); };
+    osc.onended = () => {
+      osc.disconnect();
+      gain.disconnect();
+    };
   });
 
   // Sustained major chord after arpeggio for warmth
@@ -129,7 +156,10 @@ export function playLevelComplete(ctx: AudioContext, dest: AudioNode) {
     osc.connect(gain).connect(dest);
     osc.start(start);
     osc.stop(start + 1.5);
-    osc.onended = () => { osc.disconnect(); gain.disconnect(); };
+    osc.onended = () => {
+      osc.disconnect();
+      gain.disconnect();
+    };
   });
 
   // Shimmer burst
@@ -149,7 +179,11 @@ export function playLevelComplete(ctx: AudioContext, dest: AudioNode) {
   noise.connect(hp).connect(ng).connect(dest);
   noise.start(t);
   noise.stop(t + 0.6);
-  noise.onended = () => { noise.disconnect(); hp.disconnect(); ng.disconnect(); };
+  noise.onended = () => {
+    noise.disconnect();
+    hp.disconnect();
+    ng.disconnect();
+  };
 }
 
 /** Single tone at ascending pitch per star index — star chime */
@@ -168,7 +202,10 @@ export function playStar(ctx: AudioContext, dest: AudioNode, index: number) {
   osc.connect(gain).connect(dest);
   osc.start(ctx.currentTime);
   osc.stop(ctx.currentTime + 0.3);
-  osc.onended = () => { osc.disconnect(); gain.disconnect(); };
+  osc.onended = () => {
+    osc.disconnect();
+    gain.disconnect();
+  };
 }
 
 /** Descending pitch sweep — "rewind" feel */
@@ -183,7 +220,10 @@ export function playUndo(ctx: AudioContext, dest: AudioNode) {
   osc.connect(gain).connect(dest);
   osc.start(ctx.currentTime);
   osc.stop(ctx.currentTime + 0.15);
-  osc.onended = () => { osc.disconnect(); gain.disconnect(); };
+  osc.onended = () => {
+    osc.disconnect();
+    gain.disconnect();
+  };
 }
 
 /** Short noise burst — subtle "tick" */
@@ -202,6 +242,9 @@ export function playButtonClick(ctx: AudioContext, dest: AudioNode) {
   noise.connect(hp).connect(gain).connect(dest);
   noise.start(ctx.currentTime);
   noise.stop(ctx.currentTime + 0.04);
-  noise.onended = () => { noise.disconnect(); hp.disconnect(); gain.disconnect(); };
+  noise.onended = () => {
+    noise.disconnect();
+    hp.disconnect();
+    gain.disconnect();
+  };
 }
-

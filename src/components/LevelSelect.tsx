@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { motion } from "framer-motion";
 import { IoStar, IoDownloadOutline } from "react-icons/io5";
 import type { LevelResult } from "../game/types";
@@ -12,6 +13,45 @@ interface LevelSelectProps {
 }
 
 const TOTAL_LEVELS = 200;
+const levels = Array.from({ length: TOTAL_LEVELS }, (_, i) => i + 1);
+
+const LevelButton = memo(function LevelButton({
+  n,
+  result,
+  isCurrent,
+  onSelect,
+}: {
+  n: number;
+  result: LevelResult | undefined;
+  isCurrent: boolean;
+  onSelect: (level: number) => void;
+}) {
+  return (
+    <button
+      className={`btn btn-level${isCurrent ? " current" : ""}`}
+      onClick={() => {
+        audioManager.playButtonClick();
+        onSelect(n);
+      }}
+    >
+      <span>{n}</span>
+      {result && (
+        <span style={styles.starsRow}>
+          {[1, 2, 3].map((s) => (
+            <span
+              key={s}
+              style={{
+                color: s <= result.stars ? "#eab308" : "#475569",
+              }}
+            >
+              <IoStar />
+            </span>
+          ))}
+        </span>
+      )}
+    </button>
+  );
+});
 
 export function LevelSelect({
   maxLevel,
@@ -19,7 +59,6 @@ export function LevelSelect({
   totalScore,
   onSelect,
 }: LevelSelectProps) {
-  const levels = Array.from({ length: TOTAL_LEVELS }, (_, i) => i + 1);
   const { canInstall, install } = useInstallPrompt();
 
   return (
@@ -56,31 +95,13 @@ export function LevelSelect({
             const isCurrent = isUnlocked && !result;
 
             return (
-              <motion.button
+              <LevelButton
                 key={n}
-                className={`btn btn-level${isCurrent ? " current" : ""}`}
-                whileTap={{ scale: 0.92 }}
-                onClick={() => {
-                  audioManager.playButtonClick();
-                  onSelect(n);
-                }}
-              >
-                <span>{n}</span>
-                {result && (
-                  <span style={styles.starsRow}>
-                    {[1, 2, 3].map((s) => (
-                      <span
-                        key={s}
-                        style={{
-                          color: s <= result.stars ? "#eab308" : "#475569",
-                        }}
-                      >
-                        <IoStar />
-                      </span>
-                    ))}
-                  </span>
-                )}
-              </motion.button>
+                n={n}
+                result={result}
+                isCurrent={isCurrent}
+                onSelect={onSelect}
+              />
             );
           })}
         </div>

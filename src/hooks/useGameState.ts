@@ -77,7 +77,7 @@ export function useGameState(initialTubes: Tube[], initialLockedMask: boolean[][
         prev.tubes[index]!.length > 0 &&
         !isTubeComplete(prev.tubes[index]!, prev.lockedMask[index])
       ) {
-        return { ...prev, selectedTube: index, invalidTube: to };
+        return { ...prev, selectedTube: index, invalidTube: null };
       }
 
       return { ...prev, selectedTube: null, invalidTube: to };
