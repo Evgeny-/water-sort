@@ -92,8 +92,9 @@ function generateLockedMask(
     }
     const isLocked = Math.random() < lockedPercentage;
     if (!isLocked) return tube.map(() => false);
-    // Lock all segments except the topmost
-    return tube.map((_, i) => i < tube.length - 1);
+    // Lock a random number of bottom segments (1 to tube.length-1)
+    const lockedCount = 1 + Math.floor(Math.random() * (tube.length - 1));
+    return tube.map((_, i) => i < lockedCount);
   });
 }
 

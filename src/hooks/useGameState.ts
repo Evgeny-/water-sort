@@ -30,12 +30,12 @@ export function useGameState(initialTubes: Tube[], initialLockedMask: boolean[][
       if (prev.pourAnim) return prev;
 
       // If level is already complete, ignore taps
-      if (isLevelComplete(prev.tubes)) return prev;
+      if (isLevelComplete(prev.tubes, prev.lockedMask)) return prev;
 
       // No tube selected yet — select this one (if it has liquid)
       if (prev.selectedTube === null) {
         if (prev.tubes[index]!.length === 0) return prev;
-        if (isTubeComplete(prev.tubes[index]!)) return prev;
+        if (isTubeComplete(prev.tubes[index]!, prev.lockedMask[index])) return prev;
         return { ...prev, selectedTube: index };
       }
 
@@ -52,7 +52,7 @@ export function useGameState(initialTubes: Tube[], initialLockedMask: boolean[][
         const source = prev.tubes[from]!;
         const color = topColor(source)!;
         const count = Math.min(
-          topCount(source),
+          topCount(source, prev.lockedMask[from]),
           TUBE_CAPACITY - prev.tubes[to]!.length,
         );
 
@@ -67,6 +67,7 @@ export function useGameState(initialTubes: Tube[], initialLockedMask: boolean[][
             count,
             sourceTubeBefore: [...source],
             sourceLockedBefore: [...prev.lockedMask[from]!],
+            destTubeLength: prev.tubes[to]!.length,
           },
         };
       }
@@ -74,7 +75,7 @@ export function useGameState(initialTubes: Tube[], initialLockedMask: boolean[][
       // Invalid pour — select the new tube instead (if it has liquid and not complete)
       if (
         prev.tubes[index]!.length > 0 &&
-        !isTubeComplete(prev.tubes[index]!)
+        !isTubeComplete(prev.tubes[index]!, prev.lockedMask[index])
       ) {
         return { ...prev, selectedTube: index, invalidTube: to };
       }
@@ -88,27 +89,7 @@ export function useGameState(initialTubes: Tube[], initialLockedMask: boolean[][
     setState((prev) => {
       if (!prev.pourAnim) return prev;
       const { fromIndex, toIndex } = prev.pourAnim;
-      const newTubes = pour(prev.tubes, fromIndex, toIndex);
-
-      // Combo detection
-      const newCompletedCount = newTubes.filter((t) =>
-        isTubeComplete(t),
-      ).length;
-      const justCompleted = newCompletedCount - prev.prevCompletedCount;
-
-      let comboCounter = prev.comboCounter;
-      let totalComboBonus = prev.totalComboBonus;
-
-      if (justCompleted > 0) {
-        comboCounter += justCompleted;
-        for (let i = 0; i < justCompleted; i++) {
-          if (comboCounter > 1) {
-            totalComboBonus += comboCounter * 50;
-          }
-        }
-      } else {
-        comboCounter = 0;
-      }
+      const newTubes = pour(prev.tubes, fromIndex, toIndex, prev.lockedMask);
 
       // Reveal newly exposed top segments after pouring
       const newLockedMask = revealTopSegments(prev.lockedMask, newTubes);
@@ -121,9 +102,6 @@ export function useGameState(initialTubes: Tube[], initialLockedMask: boolean[][
         moves: [...prev.moves, { from: fromIndex, to: toIndex }],
         history: [...prev.history, prev.tubes],
         lockedMaskHistory: [...prev.lockedMaskHistory, prev.lockedMask],
-        prevCompletedCount: newCompletedCount,
-        comboCounter,
-        totalComboBonus,
         invalidTube: null,
         lockedMask: newLockedMask,
       };
@@ -148,8 +126,6 @@ export function useGameState(initialTubes: Tube[], initialLockedMask: boolean[][
         history: prev.history.slice(0, -1),
         lockedMaskHistory: prev.lockedMaskHistory.slice(0, -1),
         undoCount: prev.undoCount + 1,
-        prevCompletedCount: prevTubes.filter((t) => isTubeComplete(t)).length,
-        comboCounter: 0,
         invalidTube: null,
         pourAnim: null,
         lockedMask: prevLockedMask,
@@ -164,8 +140,8 @@ export function useGameState(initialTubes: Tube[], initialLockedMask: boolean[][
     }));
   }, [initialTubes, initialLockedMask]);
 
-  const levelComplete = isLevelComplete(state.tubes);
-  const stuck = !levelComplete && checkStuck(state.tubes);
+  const levelComplete = isLevelComplete(state.tubes, state.lockedMask);
+  const stuck = !levelComplete && checkStuck(state.tubes, state.lockedMask);
 
   return { state, selectTube, commitPour, finishPourAnim, undo, restart, levelComplete, stuck };
 }

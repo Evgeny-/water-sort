@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { IoStar } from "react-icons/io5";
 import type { LevelResult } from "../game/types";
 
 interface LevelSelectProps {
@@ -15,27 +16,25 @@ export function LevelSelect({ maxLevel, results, totalScore, onSelect }: LevelSe
 
   return (
     <div style={styles.container}>
-      <h1 style={styles.title}>Water Sort</h1>
+      <h1 className="game-title" style={styles.title}>Water Sort</h1>
       <p style={styles.subtitle}>Choose a level</p>
       {totalScore > 0 && (
-        <p style={styles.totalScore}>Score: {totalScore}</p>
+        <p className="score-badge" style={styles.totalScore}><IoStar /> {totalScore}</p>
       )}
 
       <div style={styles.scrollArea}>
         <div style={styles.grid}>
           {levels.map((n) => {
-            const isCurrent = n === maxLevel;
             const result = results[String(n)];
+            const isUnlocked = n <= maxLevel;
+            const isCurrent = isUnlocked && !result;
 
             return (
               <motion.button
                 key={n}
+                className={`btn btn-level${isCurrent ? " current" : ""}`}
                 whileTap={{ scale: 0.92 }}
                 onClick={() => onSelect(n)}
-                style={{
-                  ...styles.levelButton,
-                  ...(isCurrent ? styles.current : {}),
-                }}
               >
                 <span>{n}</span>
                 {result && (
@@ -47,7 +46,7 @@ export function LevelSelect({ maxLevel, results, totalScore, onSelect }: LevelSe
                           color: s <= result.stars ? "#eab308" : "#475569",
                         }}
                       >
-                        ★
+                        <IoStar />
                       </span>
                     ))}
                   </span>
@@ -71,8 +70,6 @@ const styles: Record<string, React.CSSProperties> = {
     minHeight: 0,
   },
   title: {
-    fontSize: 28,
-    fontWeight: 700,
     textAlign: "center",
     marginBottom: 4,
   },
@@ -83,11 +80,9 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: 4,
   },
   totalScore: {
-    fontSize: 14,
-    color: "#eab308",
     textAlign: "center" as const,
     marginBottom: 16,
-    fontWeight: 600,
+    margin: "0 auto 16px",
   },
   scrollArea: {
     flex: 1,
@@ -103,30 +98,10 @@ const styles: Record<string, React.CSSProperties> = {
     margin: "0 auto",
     paddingBottom: 20,
   },
-  levelButton: {
-    aspectRatio: "1",
-    borderRadius: 12,
-    border: "1px solid var(--tube-glass-border)",
-    background: "var(--bg-secondary)",
-    color: "var(--text-primary)",
-    fontSize: 18,
-    fontWeight: 600,
-    cursor: "pointer",
-    fontFamily: "inherit",
-    display: "flex",
-    flexDirection: "column" as const,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 2,
-  },
   starsRow: {
     display: "flex",
     gap: 1,
     fontSize: 10,
     lineHeight: 1,
-  },
-  current: {
-    border: "2px solid #3b82f6",
-    boxShadow: "0 0 12px rgba(59, 130, 246, 0.3)",
   },
 };

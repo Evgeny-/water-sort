@@ -5,12 +5,17 @@ export function topColor(tube: Tube): string | undefined {
   return tube[tube.length - 1];
 }
 
-/** Count consecutive same-color segments at the top of a tube */
-export function topCount(tube: Tube): number {
+/**
+ * Count consecutive same-color segments at the top of a tube.
+ * If a lockedMask is provided, stops at the first locked segment
+ * (player can't pour what they can't see).
+ */
+export function topCount(tube: Tube, lockedMask?: boolean[]): number {
   if (tube.length === 0) return 0;
   const color = tube[tube.length - 1]!;
   let count = 1;
   for (let i = tube.length - 2; i >= 0; i--) {
+    if (lockedMask?.[i]) break;
     if (tube[i] === color) count++;
     else break;
   }
@@ -26,12 +31,12 @@ export function canPour(source: Tube, destination: Tube): boolean {
 }
 
 /** Execute a pour from source to destination. Returns new tubes (immutable). */
-export function pour(tubes: Tube[], from: number, to: number): Tube[] {
+export function pour(tubes: Tube[], from: number, to: number, lockedMask?: boolean[][]): Tube[] {
   const source = [...tubes[from]!];
   const dest = [...tubes[to]!];
 
   const color = topColor(source)!;
-  const count = topCount(source);
+  const count = topCount(source, lockedMask?.[from]);
   const space = TUBE_CAPACITY - dest.length;
   const transferred = Math.min(count, space);
 
@@ -52,24 +57,25 @@ export function pour(tubes: Tube[], from: number, to: number): Tube[] {
   return newTubes;
 }
 
-/** Check if a tube is complete (full with one color) */
-export function isTubeComplete(tube: Tube): boolean {
+/** Check if a tube is complete (full with one color, no locked segments) */
+export function isTubeComplete(tube: Tube, lockedMask?: boolean[]): boolean {
   if (tube.length !== TUBE_CAPACITY) return false;
+  if (lockedMask?.some(Boolean)) return false;
   return tube.every((c) => c === tube[0]);
 }
 
 /** Check if the level is solved */
-export function isLevelComplete(tubes: Tube[]): boolean {
-  return tubes.every((tube) => tube.length === 0 || isTubeComplete(tube));
+export function isLevelComplete(tubes: Tube[], lockedMask?: boolean[][]): boolean {
+  return tubes.every((tube, i) => tube.length === 0 || isTubeComplete(tube, lockedMask?.[i]));
 }
 
 /** Get all valid moves from the current state */
-export function getValidMoves(tubes: Tube[]): Move[] {
+export function getValidMoves(tubes: Tube[], lockedMask?: boolean[][]): Move[] {
   const moves: Move[] = [];
   for (let from = 0; from < tubes.length; from++) {
     if (tubes[from]!.length === 0) continue;
     // Skip already-completed tubes as source
-    if (isTubeComplete(tubes[from]!)) continue;
+    if (isTubeComplete(tubes[from]!, lockedMask?.[from])) continue;
     for (let to = 0; to < tubes.length; to++) {
       if (from === to) continue;
       if (canPour(tubes[from]!, tubes[to]!)) {
@@ -81,12 +87,15 @@ export function getValidMoves(tubes: Tube[]): Move[] {
 }
 
 /** Check if the player is stuck (no valid moves and not solved) */
-export function isStuck(tubes: Tube[]): boolean {
-  return !isLevelComplete(tubes) && getValidMoves(tubes).length === 0;
+export function isStuck(tubes: Tube[], lockedMask?: boolean[][]): boolean {
+  return !isLevelComplete(tubes, lockedMask) && getValidMoves(tubes, lockedMask).length === 0;
 }
 
 /**
- * Reveal the topmost segment in each tube if it was locked.
+ * Sync locked mask to match current tube lengths and reveal the new top segment.
+ * - Truncates mask entries for segments that were poured away
+ * - Pads with `false` for segments that were poured in (new segments are always visible)
+ * - Reveals the topmost segment if it was locked
  * Returns a new mask (immutable).
  */
 export function revealTopSegments(
@@ -95,12 +104,24 @@ export function revealTopSegments(
 ): boolean[][] {
   return lockedMask.map((tubeMask, ti) => {
     const tube = tubes[ti]!;
-    if (tube.length === 0) return [...tubeMask];
-    const topIdx = tube.length - 1;
-    if (!tubeMask[topIdx]) return [...tubeMask];
-    // Reveal the top segment
-    const newMask = [...tubeMask];
-    newMask[topIdx] = false;
+    // Sync mask length to tube length
+    let newMask: boolean[];
+    if (tubeMask.length > tube.length) {
+      // Segments were removed — truncate
+      newMask = tubeMask.slice(0, tube.length);
+    } else if (tubeMask.length < tube.length) {
+      // Segments were added — pad with false (new segments are visible)
+      newMask = [...tubeMask];
+      while (newMask.length < tube.length) {
+        newMask.push(false);
+      }
+    } else {
+      newMask = [...tubeMask];
+    }
+    // Reveal the top segment if locked
+    if (tube.length > 0 && newMask[tube.length - 1]) {
+      newMask[tube.length - 1] = false;
+    }
     return newMask;
   });
 }
@@ -122,9 +143,6 @@ export function createGameState(
     restartCount: 0,
     history: [],
     lockedMaskHistory: [],
-    comboCounter: 0,
-    totalComboBonus: 0,
-    prevCompletedCount: 0,
     invalidTube: null,
     pourAnim: null,
     lockedMask: initialMask,

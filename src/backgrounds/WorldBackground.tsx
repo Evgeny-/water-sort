@@ -49,15 +49,17 @@ function generateDecorations(
         size = 30 + rand() * 80;
         blur = 20 + rand() * 40;
         opacity = 0.03 + rand() * 0.06;
-        animation = "bgDrift";
+        // Randomly pick between drift and swirl for orbs
+        animation = rand() > 0.5 ? "bgDrift" : "bgSwirl";
         duration = 25 + rand() * 20;
         break;
       case "sparkles":
         size = 2 + rand() * 5;
         blur = 0;
         opacity = 0.05 + rand() * 0.12;
-        animation = "bgPulse";
-        duration = 3 + rand() * 5;
+        // Sparkles now wander around instead of just pulsing in place
+        animation = rand() > 0.4 ? "bgWander" : "bgPulse";
+        duration = 8 + rand() * 12;
         break;
     }
 

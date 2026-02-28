@@ -69,6 +69,13 @@ export default function App() {
         }
         return next;
       });
+      // Unlock the next level when this one is completed
+      const nextLevel = levelNumber + 1;
+      setMaxLevel((m) => {
+        const newMax = Math.max(m, nextLevel);
+        saveMaxLevel(newMax);
+        return newMax;
+      });
     },
     [],
   );
@@ -85,12 +92,6 @@ export default function App() {
     setScreen((prev) => {
       if (prev.kind !== "game") return prev;
       const nextNum = prev.level.levelNumber + 1;
-      // Unlock the next level
-      setMaxLevel((m) => {
-        const newMax = Math.max(m, nextNum);
-        saveMaxLevel(newMax);
-        return newMax;
-      });
       const next = createLevel(nextNum);
       return { kind: "game", level: next };
     });

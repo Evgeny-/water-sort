@@ -61,7 +61,155 @@ body {
 }
 
 button:disabled {
-  opacity: 0.4;
+  opacity: 0.35;
   cursor: not-allowed;
   pointer-events: none;
+}
+
+/* ─── Glass button base ─── */
+.btn {
+  position: relative;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: linear-gradient(
+    135deg,
+    rgba(30, 41, 59, 0.85) 0%,
+    rgba(15, 23, 42, 0.75) 100%
+  );
+  color: var(--text-primary);
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.btn:active:not(:disabled) {
+  transform: scale(0.95);
+  box-shadow:
+    0 1px 4px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+/* ─── Icon button (back, small actions) ─── */
+.btn-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+/* ─── Game control buttons (undo, restart) ─── */
+.btn-control {
+  padding: 10px 28px;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+}
+
+/* ─── Primary action button (next level) ─── */
+.btn-primary {
+  padding: 14px 36px;
+  border-radius: 14px;
+  font-size: 16px;
+  font-weight: 600;
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  background: linear-gradient(
+    135deg,
+    rgba(59, 130, 246, 0.5) 0%,
+    rgba(37, 99, 235, 0.6) 100%
+  );
+  box-shadow:
+    0 4px 16px rgba(59, 130, 246, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+.btn-primary:active:not(:disabled) {
+  box-shadow:
+    0 2px 8px rgba(59, 130, 246, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* ─── Level grid button ─── */
+.btn-level {
+  aspect-ratio: 1;
+  border-radius: 14px;
+  font-size: 17px;
+  font-weight: 600;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+}
+.btn-level.current {
+  border: 1.5px solid rgba(59, 130, 246, 0.5);
+  box-shadow:
+    0 0 14px rgba(59, 130, 246, 0.25),
+    inset 0 1px 0 rgba(59, 130, 246, 0.1);
+}
+
+/* ─── Complete card ─── */
+.complete-card {
+  background: linear-gradient(
+    160deg,
+    rgba(30, 41, 59, 0.92) 0%,
+    rgba(15, 23, 42, 0.88) 100%
+  );
+  border-radius: 24px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.5),
+    0 0 60px rgba(59, 130, 246, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+/* ─── Stuck banner ─── */
+.stuck-banner {
+  background: linear-gradient(
+    135deg,
+    rgba(239, 68, 68, 0.12) 0%,
+    rgba(239, 68, 68, 0.06) 100%
+  );
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 14px;
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.08);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* ─── Title styling ─── */
+.game-title {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  background: linear-gradient(
+    135deg,
+    #f8fafc 0%,
+    #94a3b8 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ─── Score badge ─── */
+.score-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  background: rgba(234, 179, 8, 0.1);
+  border: 1px solid rgba(234, 179, 8, 0.2);
+  color: #eab308;
+  font-size: 14px;
+  font-weight: 600;
 }

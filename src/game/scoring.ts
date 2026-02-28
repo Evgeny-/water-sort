@@ -1,11 +1,9 @@
 export interface ScoreBreakdown {
   base: number;
   efficiency: number;
-  comboBonus: number;
-  subtotal: number;
-  undoMultiplier: number;
-  restartMultiplier: number;
+  undoFine: number;
   score: number;
+  maxScore: number;
   stars: number;
 }
 
@@ -13,27 +11,30 @@ export function calculateScore(
   moves: number,
   par: number,
   undoCount: number,
-  restartCount: number,
-  comboBonus: number,
+  level: number,
 ): ScoreBreakdown {
-  const base = 100;
+  const base = 100 + (level - 1) * 10;
 
-  // Efficiency: +20 per move under par, -5 per move over par
+  // Efficiency: +20 per move under par, -10 per move over par
   const diff = par - moves;
-  const efficiency = diff >= 0 ? diff * 20 : diff * 5; // diff is negative when over par
+  const efficiency = diff >= 0 ? diff * 20 : diff * 10; // diff is negative when over par
 
-  const subtotal = Math.max(0, base + efficiency + comboBonus);
+  // Undo fine: 5% of base per undo used, capped at 50% of base
+  const undoFine = undoCount > 0
+    ? Math.min(Math.round(base * 0.05) * undoCount, Math.round(base * 0.5))
+    : 0;
 
-  const undoMultiplier = undoCount === 0 ? 1.5 : 1;
-  const restartMultiplier = restartCount === 0 ? 1.2 : 1;
+  const score = Math.max(0, base + efficiency - undoFine);
 
-  const score = Math.round(subtotal * undoMultiplier * restartMultiplier);
+  // Max possible score: par moves, no undos
+  const maxScore = base;
 
-  // Star rating
+  // Star rating based on score % of max
+  const pct = maxScore > 0 ? score / maxScore : 0;
   let stars: number;
-  if (moves <= par && undoCount === 0) {
+  if (pct >= 0.85) {
     stars = 3;
-  } else if (moves <= Math.ceil(par * 1.5)) {
+  } else if (pct >= 0.5) {
     stars = 2;
   } else {
     stars = 1;
@@ -42,11 +43,9 @@ export function calculateScore(
   return {
     base,
     efficiency,
-    comboBonus,
-    subtotal,
-    undoMultiplier,
-    restartMultiplier,
+    undoFine,
     score,
+    maxScore,
     stars,
   };
 }

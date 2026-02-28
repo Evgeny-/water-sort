@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useCallback, useState } from "react";
 import { motion } from "framer-motion";
 import { type Tube as TubeType, TUBE_CAPACITY, COLORS } from "../game/types";
 import { isTubeComplete } from "../game/engine";
@@ -33,9 +33,10 @@ const TOTAL_WIDTH = TUBE_SVG_WIDTH;
 
 // Liquid segments span from near the bottom up into the shoulder.
 // SEGMENT_HEIGHT is sized so 4 segments cover body + most of shoulder.
-const SEGMENT_HEIGHT = (BODY_HEIGHT + SHOULDER_HEIGHT - 4) / TUBE_CAPACITY;
+export const SEGMENT_HEIGHT =
+  (BODY_HEIGHT + SHOULDER_HEIGHT - 4) / TUBE_CAPACITY;
 // Bottom of first segment sits near the bottle floor
-const LIQUID_BOTTOM = NECK_HEIGHT + SHOULDER_HEIGHT + BODY_HEIGHT + 5;
+export const LIQUID_BOTTOM = NECK_HEIGHT + SHOULDER_HEIGHT + BODY_HEIGHT + 5;
 
 // SVG path for the bottle outline
 const WALL_THICKNESS = 2;
@@ -110,20 +111,87 @@ function liquidClipPath(): string {
   ].join(" ");
 }
 
-// Generate a wavy-top segment path. `phase` flips the wave direction.
-const WAVE_AMP = 5;
+// Generate a wavy-top segment path using a smooth sine-like curve.
+// The wave is built from 4 cubic bezier segments that approximate a full sine wave
+// across the bottle width, with continuous tangent at every join point.
+const WAVE_AMP_IDLE = 1;
+const WAVE_AMP = 3;
 function wavySegmentPath(top: number, bottom: number, amp: number): string {
   const w = TOTAL_WIDTH;
-  const third = w / 3;
+  // 4 quarter-wave segments, each spanning w/4 horizontally
+  const qw = w / 4;
+  // Bezier control handle length for sine approximation: (4/3)*tan(π/8) ≈ 0.5523
+  const k = qw * 0.5523;
+  // Key x positions: 0, qw, 2qw, 3qw, w
+  // Key y positions: top (neutral), top-amp (peak), top (neutral), top+amp (trough), top (neutral)
   return [
     `M 0 ${bottom + 1}`,
     `L ${w} ${bottom + 1}`,
     `L ${w} ${top}`,
-    // Two cubic bezier humps across the top edge (right → left)
-    `C ${w - third * 0.5} ${top - amp}, ${w - third * 1.5} ${top + amp}, ${w - third * 2} ${top}`,
-    `C ${third * 1.5} ${top - amp}, ${third * 0.5} ${top + amp}, 0 ${top}`,
+    // Right → left: 4 quarter-wave cubic segments with smooth joins
+    // Segment 1: w,top → 3qw,top-amp (rising to peak)
+    `C ${w - k} ${top}, ${3 * qw + k} ${top - amp}, ${3 * qw} ${top - amp}`,
+    // Segment 2: 3qw,top-amp → 2qw,top (peak to neutral)
+    `C ${3 * qw - k} ${top - amp}, ${2 * qw + k} ${top}, ${2 * qw} ${top}`,
+    // Segment 3: 2qw,top → qw,top+amp (neutral to trough)
+    `C ${2 * qw - k} ${top}, ${qw + k} ${top + amp}, ${qw} ${top + amp}`,
+    // Segment 4: qw,top+amp → 0,top (trough to neutral)
+    `C ${qw - k} ${top + amp}, ${k} ${top}, 0 ${top}`,
     `Z`,
   ].join(" ");
+}
+
+/** Continuously animated wavy segment using rAF.
+ *  `targetAmp` is smoothly lerped so amplitude changes feel natural.
+ *  `speed` controls oscillation rate (rad/s). `phase` offsets the start. */
+function WavySegment({
+  top,
+  bottom,
+  targetAmp,
+  speed,
+  phase,
+  fill,
+}: {
+  top: number;
+  bottom: number;
+  targetAmp: number;
+  speed: number;
+  phase: number;
+  fill: string;
+}) {
+  const pathRef = useRef<SVGPathElement>(null);
+  const ampRef = useRef(targetAmp);
+  const targetRef = useRef(targetAmp);
+  targetRef.current = targetAmp;
+
+  const animate = useCallback(
+    (time: number) => {
+      // Smoothly lerp current amplitude toward target
+      const lerpSpeed = 0.07; // per frame, ~4-5 frames to settle
+      ampRef.current += (targetRef.current - ampRef.current) * lerpSpeed;
+
+      const t = time / 1000;
+      const sine = Math.sin(t * speed + phase);
+      const currentAmp = ampRef.current * sine;
+
+      if (pathRef.current) {
+        pathRef.current.setAttribute(
+          "d",
+          wavySegmentPath(top, bottom, currentAmp),
+        );
+      }
+      rafRef.current = requestAnimationFrame(animate);
+    },
+    [top, bottom, speed, phase],
+  );
+
+  const rafRef = useRef(0);
+  useEffect(() => {
+    rafRef.current = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [animate]);
+
+  return <path ref={pathRef} d={wavySegmentPath(top, bottom, 0)} fill={fill} />;
 }
 
 /**
@@ -132,7 +200,13 @@ function wavySegmentPath(top: number, bottom: number, amp: number): string {
  */
 const LOCKED_COLOR = "#4a5568";
 
-export function TubeSVG({ tube, clipId, borderColor, drainCount = 0, lockedMask }: {
+export function TubeSVG({
+  tube,
+  clipId,
+  borderColor,
+  drainCount = 0,
+  lockedMask,
+}: {
   tube: TubeType;
   clipId: string;
   borderColor?: string;
@@ -189,9 +263,7 @@ export function TubeSVG({ tube, clipId, borderColor, drainCount = 0, lockedMask 
           const segTop = segBottom - SEGMENT_HEIGHT;
           // Should this segment drain? Top `drainCount` segments animate out
           const isDraining = drainCount > 0 && i >= tube.length - drainCount;
-          const drainDelay = isDraining
-            ? (tube.length - 1 - i) * 0.04
-            : 0;
+          const drainDelay = isDraining ? (tube.length - 1 - i) * 0.04 : 0;
           const segCenterX = TOTAL_WIDTH / 2;
           const segCenterY = (segTop + segBottom) / 2;
 
@@ -285,11 +357,71 @@ interface TubeProps {
   onClick: () => void;
   /** Per-segment locked mask (true = hidden color) */
   lockedMask?: boolean[];
+  /** True while this tube is hidden behind the pour animation overlay */
+  hidden?: boolean;
 }
 
-export function Tube({ tube, selected, invalid, onClick, lockedMask }: TubeProps) {
-  const complete = isTubeComplete(tube);
+export function Tube({
+  tube,
+  selected,
+  invalid,
+  onClick,
+  lockedMask,
+  hidden,
+}: TubeProps) {
+  const complete = isTubeComplete(tube, lockedMask);
   const clipId = `bottle-clip-${Math.random().toString(36).slice(2, 9)}`;
+  // Random phase offset so each bottle's idle wave is out of sync
+  const wavePhase = useRef(Math.random() * Math.PI * 2).current;
+
+  // Track which segments just got revealed (locked → unlocked).
+  // When the tube is hidden (behind pour overlay), we accumulate pending
+  // reveals and only start the animation once the tube becomes visible.
+  const prevLockedRef = useRef(lockedMask);
+  const [revealedSet, setRevealedSet] = useState<Set<number>>(new Set());
+  const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingRevealRef = useRef<Set<number> | null>(null);
+
+  useEffect(() => {
+    // Detect newly revealed segments by comparing previous and current lockedMask
+    const prev = prevLockedRef.current;
+    prevLockedRef.current = lockedMask;
+
+    if (!prev || !lockedMask) return;
+    const revealed = new Set<number>();
+    for (let i = 0; i < tube.length; i++) {
+      if (prev[i] && !lockedMask[i]) {
+        revealed.add(i);
+      }
+    }
+    if (revealed.size === 0) return;
+
+    if (hidden) {
+      // Tube is invisible — stash reveals for when it becomes visible
+      pendingRevealRef.current = revealed;
+    } else {
+      setRevealedSet(revealed);
+      if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
+      revealTimerRef.current = setTimeout(() => setRevealedSet(new Set()), 500);
+    }
+  }, [lockedMask, tube.length, hidden]);
+
+  // When tube transitions from hidden → visible, flush pending reveals
+  useEffect(() => {
+    if (!hidden && pendingRevealRef.current) {
+      const pending = pendingRevealRef.current;
+      pendingRevealRef.current = null;
+      setRevealedSet(pending);
+      if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
+      revealTimerRef.current = setTimeout(() => setRevealedSet(new Set()), 500);
+    }
+  }, [hidden]);
+
+  useEffect(() => {
+    return () => {
+      if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
+    };
+  }, []);
 
   // Track segment count to detect newly poured segments.
   // useEffect defers the ref update to after commit, so it works with StrictMode.
@@ -304,6 +436,26 @@ export function Tube({ tube, selected, invalid, onClick, lockedMask }: TubeProps
   useEffect(() => {
     prevCountRef.current = tube.length;
   });
+
+  // fillWave is true during fill + settling period; WavySegment handles smooth decay
+  const [fillWave, setFillWave] = useState(false);
+  const fillWaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (isGrowing) {
+      if (fillWaveTimer.current) clearTimeout(fillWaveTimer.current);
+      setFillWave(true);
+      const newCount = tube.length - newStartIndex;
+      const fillDoneMs = ((newCount - 1) * 0.12 + 0.4) * 1000;
+      fillWaveTimer.current = setTimeout(
+        () => setFillWave(false),
+        fillDoneMs + 400,
+      );
+    }
+    return () => {
+      if (fillWaveTimer.current) clearTimeout(fillWaveTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gen]);
 
   const borderColor = complete
     ? "rgba(34, 197, 94, 0.6)"
@@ -375,7 +527,9 @@ export function Tube({ tube, selected, invalid, onClick, lockedMask }: TubeProps
         <g clipPath={`url(#${clipId})`}>
           {tube.map((color, i) => {
             const isLocked = lockedMask?.[i] ?? false;
-            const baseColor = isLocked ? LOCKED_COLOR : (COLORS[color] ?? color);
+            const isRevealing = revealedSet.has(i);
+            const realColor = COLORS[color] ?? color;
+            const baseColor = isLocked ? LOCKED_COLOR : realColor;
             const segBottom = LIQUID_BOTTOM - i * SEGMENT_HEIGHT;
             const segTop = segBottom - SEGMENT_HEIGHT;
             const isTop = i === tube.length - 1;
@@ -387,26 +541,68 @@ export function Tube({ tube, selected, invalid, onClick, lockedMask }: TubeProps
             // Use gen in key for new segments so they remount and play initial
             const segKey = isNew ? `${i}-${gen}` : i;
 
+            // Wave amplitude target for the top segment:
+            // selected → full, filling → full, idle → subtle
+            const amp = isTop
+              ? selected || fillWave
+                ? WAVE_AMP
+                : WAVE_AMP_IDLE
+              : 0;
+            const waveSpeed = selected || fillWave ? 5 : 3;
+
             return (
               <g key={segKey}>
-                {isTop && selected ? (
-                  /* Top segment with wave animation */
-                  <motion.path
-                    initial={{ d: wavySegmentPath(segTop, segBottom, 0) }}
-                    animate={{
-                      d: [
-                        wavySegmentPath(segTop, segBottom, WAVE_AMP),
-                        wavySegmentPath(segTop, segBottom, -WAVE_AMP),
-                      ],
-                    }}
-                    transition={{
-                      d: {
-                        repeat: Infinity,
-                        repeatType: "reverse",
-                        duration: 0.8,
-                        ease: "easeInOut",
-                      },
-                    }}
+                {isRevealing ? (
+                  /* Segment being revealed: animate color from locked gray to real color */
+                  <motion.rect
+                    x={0}
+                    y={segTop}
+                    width={TOTAL_WIDTH}
+                    height={SEGMENT_HEIGHT + 1}
+                    initial={{ fill: LOCKED_COLOR }}
+                    animate={{ fill: realColor }}
+                    transition={{ duration: 0.4, ease: "easeOut" }}
+                  />
+                ) : isTop && isNew && fillWave ? (
+                  /* New top segment: expand from bottom with wave */
+                  <>
+                    <defs>
+                      <clipPath id={`${clipId}-fill-${gen}`}>
+                        <motion.rect
+                          x={0}
+                          width={TOTAL_WIDTH}
+                          initial={{ y: segBottom, height: 0 }}
+                          animate={{
+                            y: segTop - WAVE_AMP,
+                            height: SEGMENT_HEIGHT + 1 + WAVE_AMP,
+                          }}
+                          transition={{
+                            duration: 0.4,
+                            ease: [0.22, 1, 0.36, 1],
+                            delay,
+                          }}
+                        />
+                      </clipPath>
+                    </defs>
+                    <g clipPath={`url(#${clipId}-fill-${gen})`}>
+                      <WavySegment
+                        top={segTop}
+                        bottom={segBottom}
+                        targetAmp={amp}
+                        speed={waveSpeed}
+                        phase={wavePhase}
+                        fill={baseColor}
+                      />
+                    </g>
+                  </>
+                ) : isTop ? (
+                  /* Top segment with continuous wave (amplitude smoothly adjusts) */
+                  <WavySegment
+                    top={segTop}
+                    bottom={segBottom}
+                    targetAmp={amp}
+                    speed={waveSpeed}
+                    phase={wavePhase}
                     fill={baseColor}
                   />
                 ) : isNew ? (
@@ -433,26 +629,32 @@ export function Tube({ tube, selected, invalid, onClick, lockedMask }: TubeProps
                     fill={baseColor}
                   />
                 )}
-                <rect
-                  x={WALL_THICKNESS}
-                  y={segTop}
-                  width={TOTAL_WIDTH - WALL_THICKNESS * 2}
-                  height={SEGMENT_HEIGHT + 1}
-                  fill="url(#glassHighlight)"
-                />
-                {isLocked && (
-                  <text
+                {(isLocked || isRevealing) && (
+                  <motion.text
                     x={segCenterX}
                     y={segCenterY}
                     textAnchor="middle"
                     dominantBaseline="central"
-                    fill="rgba(255,255,255,0.6)"
                     fontSize={18}
                     fontWeight={700}
                     style={{ pointerEvents: "none" }}
+                    initial={
+                      isRevealing ? { opacity: 0.6, scale: 1 } : undefined
+                    }
+                    animate={
+                      isRevealing
+                        ? { opacity: 0, scale: 1.5 }
+                        : { opacity: 0.6, scale: 1 }
+                    }
+                    transition={
+                      isRevealing
+                        ? { duration: 0.3, ease: "easeOut" }
+                        : undefined
+                    }
+                    fill="rgba(255,255,255,0.6)"
                   >
                     ?
-                  </text>
+                  </motion.text>
                 )}
               </g>
             );
@@ -488,6 +690,18 @@ export function Tube({ tube, selected, invalid, onClick, lockedMask }: TubeProps
           stroke={borderColor}
           strokeWidth={WALL_THICKNESS}
         />
+
+        {/* Checkmark for completed tubes */}
+        {complete && (
+          <path
+            d={`M ${TOTAL_WIDTH / 2 - 7} ${TOTAL_HEIGHT / 2 + 10} l 5 5 l 9 -9`}
+            fill="none"
+            stroke="rgba(255, 255, 255, 0.7)"
+            strokeWidth={3}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        )}
       </svg>
     </motion.div>
   );

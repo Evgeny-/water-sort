@@ -34,6 +34,8 @@ export interface PourAnimation {
   sourceTubeBefore: Tube;
   /** Snapshot of the source tube's locked mask before pouring */
   sourceLockedBefore: boolean[];
+  /** Number of segments in the destination tube before pouring */
+  destTubeLength: number;
 }
 
 /** Runtime game state */
@@ -46,12 +48,6 @@ export interface GameState {
   history: Tube[][];
   /** History of locked masks (parallel to history) for undo */
   lockedMaskHistory: boolean[][][];
-  /** Number of consecutive tube completions in a row */
-  comboCounter: number;
-  /** Accumulated combo bonus points */
-  totalComboBonus: number;
-  /** Number of completed tubes after previous move (for combo detection) */
-  prevCompletedCount: number;
   /** Tube index that just had an invalid pour attempt (for shake animation) */
   invalidTube: number | null;
   /** Active pour animation (blocks input while non-null) */
