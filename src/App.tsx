@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Game } from "./components/Game";
-import { LevelSelect } from "./components/LevelSelect";
+import { HomeScreen } from "./components/HomeScreen";
 import { WorldBackground } from "./backgrounds/WorldBackground";
 import { createLevel } from "./game/levels";
 import { audioManager } from "./audio/audioManager";
 import type { Level, LevelResult } from "./game/types";
 
-const STORAGE_KEY_MAX = "water-sort-max-level";
-const STORAGE_KEY_RESULTS = "water-sort-results";
-const STORAGE_KEY_SPENT = "water-sort-spent-score";
+const STORAGE_KEY_MAX = "water-sort-max-level-v2";
+const STORAGE_KEY_RESULTS = "water-sort-results-v2";
+const STORAGE_KEY_SPENT = "water-sort-spent-score-v2";
 
 function loadMaxLevel(): number {
   try {
@@ -174,7 +174,7 @@ export default function App() {
       <WorldBackground levelNumber={currentLevel} />
       <div style={{ position: "relative", zIndex: 1, flex: 1, display: "flex", flexDirection: "column" as const, minHeight: 0 }}>
         {screen.kind === "select" ? (
-          <LevelSelect maxLevel={maxLevel} results={results} totalScore={totalScore} onSelect={startLevel} />
+          <HomeScreen maxLevel={maxLevel} results={results} totalScore={totalScore} onSelect={startLevel} />
         ) : screen.kind === "loading" ? (
           <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <span style={{ fontSize: 18, fontWeight: 600, color: "var(--text-secondary)" }}>

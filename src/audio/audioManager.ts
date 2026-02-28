@@ -15,8 +15,8 @@ class AudioManager {
   private contextReady = false;
 
   constructor() {
-    // Default: off. Users opt in.
-    this._sfxMuted = true;
+    // Default: on. Users can mute.
+    this._sfxMuted = false;
     try {
       const sfx = localStorage.getItem("water-sort-sfx-muted");
       if (sfx !== null) this._sfxMuted = sfx === "true";

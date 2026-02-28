@@ -135,21 +135,18 @@ button:disabled {
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
-/* ─── Level grid button ─── */
-.btn-level {
+/* ─── Level pill (previous levels grid) ─── */
+.level-pill {
   aspect-ratio: 1;
-  border-radius: 14px;
-  font-size: 17px;
-  font-weight: 600;
+  border-radius: 12px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 3px;
-  content-visibility: auto;
-  contain-intrinsic-size: auto 60px;
+  padding: 0;
 }
-.btn-level.current {
+.level-pill-selected {
   border: 1.5px solid rgba(59, 130, 246, 0.5);
   box-shadow:
     0 0 14px rgba(59, 130, 246, 0.25),

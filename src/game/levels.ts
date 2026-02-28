@@ -24,82 +24,82 @@ interface DifficultyParams {
  * Filled tubes = colors × 2. Solver runs when filled ≤ 8.
  */
 function getDifficulty(levelNumber: number): DifficultyParams {
-  // Levels 1–5: 3×2=6 filled, 2 empty — tutorial
-  if (levelNumber <= 5)
+  // Levels 1–4: 3×2=6 filled, 2 empty — tutorial
+  if (levelNumber <= 4)
     return {
       colors: 3,
       tubesPerColor: 2,
       emptyTubes: 2,
-      lockedPercentage: 0,
+      lockedPercentage: 0.15,
       paidTubes: 1,
       par: 15,
     };
-  // Levels 6–12: 4×2=8 filled, 2 empty — introduce 4th color
-  if (levelNumber <= 12)
+  // Levels 5–8: 4×2=8 filled, 2 empty — introduce 4th color
+  if (levelNumber <= 8)
     return {
       colors: 4,
       tubesPerColor: 2,
       emptyTubes: 2,
-      lockedPercentage: 0,
+      lockedPercentage: 0.25,
       paidTubes: 1,
       par: 20,
     };
-  // Levels 13–20: 4×2=8 filled, 1 empty — first squeeze, introduce locks
-  if (levelNumber <= 20)
+  // Levels 9–16: 4×2=8 filled, 1 empty — first squeeze, introduce locks
+  if (levelNumber <= 16)
     return {
       colors: 4,
       tubesPerColor: 2,
       emptyTubes: 1,
-      lockedPercentage: 0.1,
+      lockedPercentage: 0.4,
       paidTubes: 1,
       par: 20,
     };
-  // Levels 21–35: 5×2=10 filled, 1 empty — 5th color, stays tight
-  if (levelNumber <= 35)
+  // Levels 17–30: 5×2=10 filled, 1 empty — 5th color, stays tight
+  if (levelNumber <= 30)
     return {
       colors: 5,
       tubesPerColor: 2,
       emptyTubes: 1,
-      lockedPercentage: 0.2,
+      lockedPercentage: 0.5,
       paidTubes: 1,
       par: 25,
     };
-  // Levels 36–55: 6×2=12 filled, 1 empty — 6th color
-  if (levelNumber <= 55)
+  // Levels 31–50: 6×2=12 filled, 1 empty — 6th color
+  if (levelNumber <= 50)
     return {
       colors: 6,
       tubesPerColor: 2,
       emptyTubes: 1,
-      lockedPercentage: 0.3,
+      lockedPercentage: 0.6,
       paidTubes: 1,
       par: 30,
     };
-  // Levels 56–80: 6×2=12 filled, 1 empty — more locks
-  if (levelNumber <= 80)
+  // Levels 51–70: 6×2=12 filled, 1 empty — more locks
+  if (levelNumber <= 70)
     return {
       colors: 6,
       tubesPerColor: 2,
       emptyTubes: 1,
-      lockedPercentage: 0.5,
+      lockedPercentage: 0.7,
       paidTubes: 1,
       par: 30,
     };
-  // Levels 81–110: 7×2=14 filled, 1 empty — all colors
-  if (levelNumber <= 110)
+  // Levels 71–100: 7×2=14 filled, 1 empty — all colors
+  if (levelNumber <= 100)
     return {
       colors: 7,
       tubesPerColor: 2,
       emptyTubes: 1,
-      lockedPercentage: 0.55,
+      lockedPercentage: 0.8,
       paidTubes: 1,
       par: 35,
     };
-  // 111+: 7×2=14 filled, 1 empty — maximum difficulty, 70% locks
+  // 101+: 7×2=14 filled, 1 empty — maximum difficulty, 70% locks
   return {
     colors: 7,
     tubesPerColor: 2,
     emptyTubes: 1,
-    lockedPercentage: 0.7,
+    lockedPercentage: 0.9,
     paidTubes: 1,
     par: 35,
   };
@@ -179,11 +179,10 @@ function generateLockedMask(
   });
 }
 
-/** Cost to unlock one paid tube: always more than the level's max score */
+/** Cost to unlock one paid tube: base score + level × 20 */
 function getTubeCost(levelNumber: number): number {
   const base = 100 + (levelNumber - 1) * 10;
-  // Cost = 200% of the level's base score
-  return Math.round(base * 2);
+  return base + levelNumber * 20;
 }
 
 export function createLevel(levelNumber: number): Level {
