@@ -1,6 +1,5 @@
 import { type Tube, type Level, TUBE_CAPACITY, COLOR_KEYS } from "./types";
 import { isLevelComplete } from "./engine";
-import { solve } from "./solver";
 
 interface DifficultyParams {
   colors: number;
@@ -10,6 +9,8 @@ interface DifficultyParams {
   lockedPercentage: number;
   /** Number of extra empty tubes that require spending score to unlock */
   paidTubes: number;
+  /** Pre-computed par (optimal move count) for this tier */
+  par: number;
 }
 
 /**
@@ -31,6 +32,7 @@ function getDifficulty(levelNumber: number): DifficultyParams {
       emptyTubes: 2,
       lockedPercentage: 0,
       paidTubes: 1,
+      par: 15,
     };
   // Levels 6–12: 4×2=8 filled, 2 empty — introduce 4th color
   if (levelNumber <= 12)
@@ -40,6 +42,7 @@ function getDifficulty(levelNumber: number): DifficultyParams {
       emptyTubes: 2,
       lockedPercentage: 0,
       paidTubes: 1,
+      par: 20,
     };
   // Levels 13–20: 4×2=8 filled, 1 empty — first squeeze, introduce locks
   if (levelNumber <= 20)
@@ -49,6 +52,7 @@ function getDifficulty(levelNumber: number): DifficultyParams {
       emptyTubes: 1,
       lockedPercentage: 0.1,
       paidTubes: 1,
+      par: 20,
     };
   // Levels 21–35: 5×2=10 filled, 1 empty — 5th color, stays tight
   if (levelNumber <= 35)
@@ -58,6 +62,7 @@ function getDifficulty(levelNumber: number): DifficultyParams {
       emptyTubes: 1,
       lockedPercentage: 0.2,
       paidTubes: 1,
+      par: 25,
     };
   // Levels 36–55: 6×2=12 filled, 1 empty — 6th color
   if (levelNumber <= 55)
@@ -67,6 +72,7 @@ function getDifficulty(levelNumber: number): DifficultyParams {
       emptyTubes: 1,
       lockedPercentage: 0.3,
       paidTubes: 1,
+      par: 30,
     };
   // Levels 56–80: 6×2=12 filled, 1 empty — more locks
   if (levelNumber <= 80)
@@ -76,6 +82,7 @@ function getDifficulty(levelNumber: number): DifficultyParams {
       emptyTubes: 1,
       lockedPercentage: 0.5,
       paidTubes: 1,
+      par: 30,
     };
   // Levels 81–110: 7×2=14 filled, 1 empty — all colors
   if (levelNumber <= 110)
@@ -85,6 +92,7 @@ function getDifficulty(levelNumber: number): DifficultyParams {
       emptyTubes: 1,
       lockedPercentage: 0.55,
       paidTubes: 1,
+      par: 35,
     };
   // 111+: 7×2=14 filled, 1 empty — maximum difficulty, 70% locks
   return {
@@ -93,6 +101,7 @@ function getDifficulty(levelNumber: number): DifficultyParams {
     emptyTubes: 1,
     lockedPercentage: 0.7,
     paidTubes: 1,
+    par: 35,
   };
 }
 
@@ -170,14 +179,6 @@ function generateLockedMask(
   });
 }
 
-/** Estimate par when solver can't compute it exactly */
-function estimatePar(filledTubeCount: number): number {
-  // Use a conservative multiplier so players can't easily beat par.
-  // With TUBE_CAPACITY segments per tube, each tube needs roughly
-  // (TUBE_CAPACITY - 1) pours to sort, but many pours overlap.
-  return Math.floor(filledTubeCount * (TUBE_CAPACITY - 1.5));
-}
-
 /** Cost to unlock one paid tube: always more than the level's max score */
 function getTubeCost(levelNumber: number): number {
   const base = 100 + (levelNumber - 1) * 10;
@@ -186,26 +187,18 @@ function getTubeCost(levelNumber: number): number {
 }
 
 export function createLevel(levelNumber: number): Level {
-  const { colors, tubesPerColor, emptyTubes, lockedPercentage, paidTubes } =
-    getDifficulty(levelNumber);
-  const filledTubeCount = colors * tubesPerColor;
+  const {
+    colors,
+    tubesPerColor,
+    emptyTubes,
+    lockedPercentage,
+    paidTubes,
+    par,
+  } = getDifficulty(levelNumber);
   // Total empty tubes includes both free and paid (paid are appended at the end)
   const totalEmptyTubes = emptyTubes + paidTubes;
 
-  // Run solver for levels with up to 8 filled tubes
-  const canSolve = filledTubeCount <= 8;
-  const maxAttempts = canSolve ? 50 : 20;
-
-  const makeLevel = (tubes: Tube[], par: number): Level => ({
-    tubes,
-    par,
-    colors,
-    world: Math.ceil(levelNumber / 20),
-    levelNumber,
-    lockedMask: generateLockedMask(tubes, lockedPercentage),
-    paidTubes,
-    tubeCost: getTubeCost(levelNumber),
-  });
+  const maxAttempts = 20;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const tubes = generateTubes(colors, tubesPerColor, totalEmptyTubes);
@@ -214,24 +207,28 @@ export function createLevel(levelNumber: number): Level {
     if (isLevelComplete(tubes)) continue;
     if (hasDuplicateTube(tubes)) continue;
 
-    if (canSolve) {
-      const result = solve(tubes);
-
-      if (result === null) {
-        return makeLevel(tubes, estimatePar(filledTubeCount));
-      }
-
-      if (!result.solvable) continue;
-      if (result.par < 3) continue;
-
-      return makeLevel(tubes, result.par);
-    }
-
-    // For large levels, skip solver — just ensure it's not already solved
-    return makeLevel(tubes, estimatePar(filledTubeCount));
+    return {
+      tubes,
+      par,
+      colors,
+      world: Math.ceil(levelNumber / 20),
+      levelNumber,
+      lockedMask: generateLockedMask(tubes, lockedPercentage),
+      paidTubes,
+      tubeCost: getTubeCost(levelNumber),
+    };
   }
 
   // Fallback
   const tubes = generateTubes(colors, tubesPerColor, totalEmptyTubes);
-  return makeLevel(tubes, estimatePar(filledTubeCount));
+  return {
+    tubes,
+    par,
+    colors,
+    world: Math.ceil(levelNumber / 20),
+    levelNumber,
+    lockedMask: generateLockedMask(tubes, lockedPercentage),
+    paidTubes,
+    tubeCost: getTubeCost(levelNumber),
+  };
 }

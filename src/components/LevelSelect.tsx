@@ -123,8 +123,8 @@ const styles: Record<string, React.CSSProperties> = {
     display: "block",
     maxWidth: 240,
     width: "60%",
-    height: "auto",
-    margin: "0 auto 6px",
+    aspectRatio: "600 / 218",
+    margin: "0 auto 10px",
   },
   subtitle: {
     fontSize: 14,
