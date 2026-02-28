@@ -100,8 +100,8 @@ export default function App() {
 
   const startLevel = useCallback(
     (levelNumber: number) => {
-      // Show loading state, then generate level off the current frame
       setScreen({ kind: "loading", levelNumber });
+      history.pushState({ screen: "game" }, "");
       setTimeout(() => {
         const level = createLevel(levelNumber);
         setScreen({ kind: "game", level });
@@ -116,7 +116,7 @@ export default function App() {
       const nextNum = prev.level.levelNumber + 1;
       return { kind: "loading", levelNumber: nextNum };
     });
-    // Defer level generation to next frame
+    history.replaceState({ screen: "game" }, "");
     setTimeout(() => {
       setScreen((prev) => {
         if (prev.kind !== "loading") return prev;
@@ -127,7 +127,16 @@ export default function App() {
   }, []);
 
   const handleBack = useCallback(() => {
-    setScreen({ kind: "select" });
+    history.back();
+  }, []);
+
+  // Browser back button: return to level select
+  useEffect(() => {
+    const onPopState = () => {
+      setScreen({ kind: "select" });
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
   }, []);
 
   // Initialize audio on first user interaction (required for iOS)
