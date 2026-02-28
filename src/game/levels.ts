@@ -25,7 +25,7 @@ interface DifficultyParams {
  */
 function getDifficulty(levelNumber: number): DifficultyParams {
   // Levels 1–4: 3×2=6 filled, 2 empty — tutorial
-  if (levelNumber <= 4)
+  if (levelNumber <= 3)
     return {
       colors: 3,
       tubesPerColor: 2,
@@ -35,12 +35,12 @@ function getDifficulty(levelNumber: number): DifficultyParams {
       par: 15,
     };
   // Levels 5–8: 4×2=8 filled, 2 empty — introduce 4th color
-  if (levelNumber <= 8)
+  if (levelNumber <= 6)
     return {
       colors: 4,
       tubesPerColor: 2,
       emptyTubes: 2,
-      lockedPercentage: 0.25,
+      lockedPercentage: 0.4,
       paidTubes: 1,
       par: 20,
     };
@@ -50,7 +50,7 @@ function getDifficulty(levelNumber: number): DifficultyParams {
       colors: 4,
       tubesPerColor: 2,
       emptyTubes: 1,
-      lockedPercentage: 0.4,
+      lockedPercentage: 0.1,
       paidTubes: 1,
       par: 20,
     };
@@ -60,7 +60,7 @@ function getDifficulty(levelNumber: number): DifficultyParams {
       colors: 5,
       tubesPerColor: 2,
       emptyTubes: 1,
-      lockedPercentage: 0.5,
+      lockedPercentage: 0.3,
       paidTubes: 1,
       par: 25,
     };
