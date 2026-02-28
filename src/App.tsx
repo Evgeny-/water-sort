@@ -49,6 +49,7 @@ type Screen = { kind: "select" } | { kind: "loading"; levelNumber: number } | { 
 export default function App() {
   const [maxLevel, setMaxLevel] = useState(loadMaxLevel);
   const [screen, setScreen] = useState<Screen>({ kind: "select" });
+  const [genCounter, setGenCounter] = useState(0);
   const [results, setResults] = useState(loadResults);
   const [spentScore, setSpentScore] = useState(() => {
     try {
@@ -109,6 +110,15 @@ export default function App() {
     },
     [],
   );
+
+  const regenerateLevel = useCallback((levelNumber: number) => {
+    setScreen({ kind: "loading", levelNumber });
+    setGenCounter((c) => c + 1);
+    setTimeout(() => {
+      const level = createLevel(levelNumber);
+      setScreen({ kind: "game", level });
+    }, 0);
+  }, []);
 
   const handleNewLevel = useCallback(() => {
     setScreen((prev) => {
@@ -173,7 +183,7 @@ export default function App() {
           </div>
         ) : (
           <Game
-            key={screen.level.levelNumber}
+            key={`${screen.level.levelNumber}-${genCounter}`}
             initialTubes={screen.level.tubes}
             initialLockedMask={screen.level.lockedMask}
             levelNumber={screen.level.levelNumber}
@@ -183,6 +193,7 @@ export default function App() {
             totalScore={totalScore}
             onSpendScore={spendScore}
             onNewLevel={handleNewLevel}
+            onRetry={() => regenerateLevel(screen.level.levelNumber)}
             onBack={handleBack}
             onLevelComplete={handleLevelComplete}
           />

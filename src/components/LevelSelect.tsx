@@ -13,23 +13,36 @@ interface LevelSelectProps {
 
 const TOTAL_LEVELS = 200;
 
-export function LevelSelect({ maxLevel, results, totalScore, onSelect }: LevelSelectProps) {
+export function LevelSelect({
+  maxLevel,
+  results,
+  totalScore,
+  onSelect,
+}: LevelSelectProps) {
   const levels = Array.from({ length: TOTAL_LEVELS }, (_, i) => i + 1);
   const { canInstall, install } = useInstallPrompt();
 
   return (
     <div style={styles.container}>
-      <h1 className="game-title" style={styles.title}>Water Sort</h1>
-      <p style={styles.subtitle}>Choose a level</p>
+      <img
+        src={`${import.meta.env.BASE_URL}logo-wide.png`}
+        alt="Water Sort Puzzle"
+        style={styles.logo}
+      />
       {totalScore > 0 && (
-        <p className="score-badge" style={styles.totalScore}><IoStar /> {totalScore}</p>
+        <p className="score-badge" style={styles.totalScore}>
+          <IoStar /> {totalScore}
+        </p>
       )}
       {canInstall && (
         <motion.button
           className="btn"
           style={styles.installBtn}
           whileTap={{ scale: 0.95 }}
-          onClick={() => { audioManager.playButtonClick(); install(); }}
+          onClick={() => {
+            audioManager.playButtonClick();
+            install();
+          }}
         >
           <IoDownloadOutline style={{ fontSize: 18 }} /> Install App
         </motion.button>
@@ -47,7 +60,10 @@ export function LevelSelect({ maxLevel, results, totalScore, onSelect }: LevelSe
                 key={n}
                 className={`btn btn-level${isCurrent ? " current" : ""}`}
                 whileTap={{ scale: 0.92 }}
-                onClick={() => { audioManager.playButtonClick(); onSelect(n); }}
+                onClick={() => {
+                  audioManager.playButtonClick();
+                  onSelect(n);
+                }}
               >
                 <span>{n}</span>
                 {result && (
@@ -82,9 +98,12 @@ const styles: Record<string, React.CSSProperties> = {
     overflow: "hidden",
     minHeight: 0,
   },
-  title: {
-    textAlign: "center",
-    marginBottom: 4,
+  logo: {
+    display: "block",
+    maxWidth: 240,
+    width: "60%",
+    height: "auto",
+    margin: "0 auto 6px",
   },
   subtitle: {
     fontSize: 14,

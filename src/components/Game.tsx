@@ -89,6 +89,7 @@ interface GameProps {
   totalScore: number;
   onSpendScore: (amount: number) => void;
   onNewLevel: () => void;
+  onRetry: () => void;
   onBack: () => void;
   onLevelComplete: (levelNumber: number, stars: number, score: number) => void;
 }
@@ -103,6 +104,7 @@ export function Game({
   totalScore,
   onSpendScore,
   onNewLevel,
+  onRetry,
   onBack,
   onLevelComplete,
 }: GameProps) {
@@ -113,7 +115,6 @@ export function Game({
     commitPour,
     finishPourAnim,
     undo,
-    restart,
     levelComplete,
     stuck,
   } = useGameState(initialTubes, initialLockedMask);
@@ -163,7 +164,6 @@ export function Game({
     audioManager.playButtonClick();
   }, []);
 
-  const isAnimating = state.pourAnim !== null;
 
   // Delay showing stuck toast so the player has time to think
   const [showStuck, setShowStuck] = useState(false);
@@ -264,10 +264,8 @@ export function Game({
   }, [levelNumber]);
 
   const handleRetry = useCallback(() => {
-    setDevSkipResult(null);
-    reportedRef.current = false;
-    restart();
-  }, [restart]);
+    onRetry();
+  }, [onRetry]);
 
   const scoreResult = levelComplete
     ? calculateScore(
@@ -419,17 +417,17 @@ export function Game({
             undo();
           }}
           className="btn btn-control"
-          disabled={state.moves.length === 0 || showComplete || isAnimating}
+          disabled={state.moves.length === 0 || showComplete}
         >
           <IoArrowUndo /> Undo
         </button>
         <button
           onClick={() => {
             audioManager.playButtonClick();
-            restart();
+            onRetry();
           }}
           className="btn btn-control"
-          disabled={state.moves.length === 0 || showComplete || isAnimating}
+          disabled={state.moves.length === 0 || showComplete}
         >
           <IoRefresh /> Restart
         </button>
@@ -437,7 +435,7 @@ export function Game({
           <button
             onClick={handleBuyTube}
             className="btn btn-control"
-            disabled={!canAfford || isAnimating}
+            disabled={!canAfford}
             style={{ color: canAfford ? "#fde68a" : undefined }}
           >
             <IoLockClosed /> Bottle{" "}

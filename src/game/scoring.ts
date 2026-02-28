@@ -18,8 +18,10 @@ export function calculateScore(
   const base = 100 + (level - 1) * 10;
 
   // Efficiency: +20 per move under par, -10 per move over par
+  // Grace zone: no penalty if moves are within 10% above par
+  const grace = Math.floor(par * 0.1);
   const diff = par - moves;
-  const efficiency = diff >= 0 ? diff * 20 : diff * 10; // diff is negative when over par
+  const efficiency = diff >= 0 ? diff * 20 : (moves <= par + grace ? 0 : (par + grace - moves) * 10);
 
   // Undo fine: 5% of base per undo used, capped at 50% of base
   const undoFine = undoCount > 0

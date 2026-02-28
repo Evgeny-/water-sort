@@ -142,15 +142,6 @@ export function useGameState(initialTubes: Tube[], initialLockedMask: boolean[][
     });
   }, []);
 
-  const restart = useCallback(() => {
-    setState((prev) => ({
-      ...createGameState(initialTubes, initialLockedMask),
-      restartCount: prev.restartCount + 1,
-      // Preserve paid tube unlocks across restarts (player already spent score)
-      unlockedPaidTubes: prev.unlockedPaidTubes,
-    }));
-  }, [initialTubes, initialLockedMask]);
-
   const levelComplete = useMemo(
     () => isLevelComplete(state.tubes, state.lockedMask),
     [state.tubes, state.lockedMask],
@@ -161,5 +152,5 @@ export function useGameState(initialTubes: Tube[], initialLockedMask: boolean[][
     [levelComplete, state.pourAnim, state.tubes, state.lockedMask],
   );
 
-  return { state, selectTube, unlockPaidTube, commitPour, finishPourAnim, undo, restart, levelComplete, stuck };
+  return { state, selectTube, unlockPaidTube, commitPour, finishPourAnim, undo, levelComplete, stuck };
 }
