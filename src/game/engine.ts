@@ -85,8 +85,35 @@ export function isStuck(tubes: Tube[]): boolean {
   return !isLevelComplete(tubes) && getValidMoves(tubes).length === 0;
 }
 
+/**
+ * Reveal the topmost segment in each tube if it was locked.
+ * Returns a new mask (immutable).
+ */
+export function revealTopSegments(
+  lockedMask: boolean[][],
+  tubes: Tube[],
+): boolean[][] {
+  return lockedMask.map((tubeMask, ti) => {
+    const tube = tubes[ti]!;
+    if (tube.length === 0) return [...tubeMask];
+    const topIdx = tube.length - 1;
+    if (!tubeMask[topIdx]) return [...tubeMask];
+    // Reveal the top segment
+    const newMask = [...tubeMask];
+    newMask[topIdx] = false;
+    return newMask;
+  });
+}
+
 /** Create initial game state from a level's tube configuration */
-export function createGameState(tubes: Tube[]): GameState {
+export function createGameState(
+  tubes: Tube[],
+  lockedMask: boolean[][],
+): GameState {
+  const initialMask = revealTopSegments(
+    lockedMask.map((m) => [...m]),
+    tubes,
+  );
   return {
     tubes: tubes.map((t) => [...t]),
     selectedTube: null,
@@ -94,9 +121,12 @@ export function createGameState(tubes: Tube[]): GameState {
     undoCount: 0,
     restartCount: 0,
     history: [],
+    lockedMaskHistory: [],
     comboCounter: 0,
     totalComboBonus: 0,
     prevCompletedCount: 0,
     invalidTube: null,
+    pourAnim: null,
+    lockedMask: initialMask,
   };
 }

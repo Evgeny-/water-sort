@@ -1,16 +1,19 @@
 import { useCallback, useEffect, useState } from "react";
-import { type Tube } from "../game/types";
+import { type Tube, TUBE_CAPACITY } from "../game/types";
 import {
   canPour,
   pour,
+  topColor,
+  topCount,
   createGameState,
   isLevelComplete,
   isTubeComplete,
   isStuck as checkStuck,
+  revealTopSegments,
 } from "../game/engine";
 
-export function useGameState(initialTubes: Tube[]) {
-  const [state, setState] = useState(() => createGameState(initialTubes));
+export function useGameState(initialTubes: Tube[], initialLockedMask: boolean[][]) {
+  const [state, setState] = useState(() => createGameState(initialTubes, initialLockedMask));
 
   // Auto-clear invalid tube shake after 500ms
   useEffect(() => {
@@ -23,6 +26,9 @@ export function useGameState(initialTubes: Tube[]) {
 
   const selectTube = useCallback((index: number) => {
     setState((prev) => {
+      // Block all taps while pour animation is playing
+      if (prev.pourAnim) return prev;
+
       // If level is already complete, ignore taps
       if (isLevelComplete(prev.tubes)) return prev;
 
@@ -42,38 +48,26 @@ export function useGameState(initialTubes: Tube[]) {
       const from = prev.selectedTube;
       const to = index;
       if (canPour(prev.tubes[from]!, prev.tubes[to]!)) {
-        const newTubes = pour(prev.tubes, from, to);
-
-        // Combo detection
-        const newCompletedCount = newTubes.filter((t) =>
-          isTubeComplete(t),
-        ).length;
-        const justCompleted = newCompletedCount - prev.prevCompletedCount;
-
-        let comboCounter = prev.comboCounter;
-        let totalComboBonus = prev.totalComboBonus;
-
-        if (justCompleted > 0) {
-          comboCounter += justCompleted;
-          for (let i = 0; i < justCompleted; i++) {
-            if (comboCounter > 1) {
-              totalComboBonus += comboCounter * 50;
-            }
-          }
-        } else {
-          comboCounter = 0;
-        }
+        // Phase 1: start animation — don't commit the pour yet
+        const source = prev.tubes[from]!;
+        const color = topColor(source)!;
+        const count = Math.min(
+          topCount(source),
+          TUBE_CAPACITY - prev.tubes[to]!.length,
+        );
 
         return {
           ...prev,
-          tubes: newTubes,
           selectedTube: null,
-          moves: [...prev.moves, { from, to }],
-          history: [...prev.history, prev.tubes],
-          prevCompletedCount: newCompletedCount,
-          comboCounter,
-          totalComboBonus,
           invalidTube: null,
+          pourAnim: {
+            fromIndex: from,
+            toIndex: to,
+            color,
+            count,
+            sourceTubeBefore: [...source],
+            sourceLockedBefore: [...prev.lockedMask[from]!],
+          },
         };
       }
 
@@ -89,34 +83,89 @@ export function useGameState(initialTubes: Tube[]) {
     });
   }, []);
 
+  // Phase 2a: commit tube state when tilt starts (keeps pourAnim alive for overlay)
+  const commitPour = useCallback(() => {
+    setState((prev) => {
+      if (!prev.pourAnim) return prev;
+      const { fromIndex, toIndex } = prev.pourAnim;
+      const newTubes = pour(prev.tubes, fromIndex, toIndex);
+
+      // Combo detection
+      const newCompletedCount = newTubes.filter((t) =>
+        isTubeComplete(t),
+      ).length;
+      const justCompleted = newCompletedCount - prev.prevCompletedCount;
+
+      let comboCounter = prev.comboCounter;
+      let totalComboBonus = prev.totalComboBonus;
+
+      if (justCompleted > 0) {
+        comboCounter += justCompleted;
+        for (let i = 0; i < justCompleted; i++) {
+          if (comboCounter > 1) {
+            totalComboBonus += comboCounter * 50;
+          }
+        }
+      } else {
+        comboCounter = 0;
+      }
+
+      // Reveal newly exposed top segments after pouring
+      const newLockedMask = revealTopSegments(prev.lockedMask, newTubes);
+
+      return {
+        ...prev,
+        tubes: newTubes,
+        selectedTube: null,
+        // pourAnim stays non-null so overlay remains mounted
+        moves: [...prev.moves, { from: fromIndex, to: toIndex }],
+        history: [...prev.history, prev.tubes],
+        lockedMaskHistory: [...prev.lockedMaskHistory, prev.lockedMask],
+        prevCompletedCount: newCompletedCount,
+        comboCounter,
+        totalComboBonus,
+        invalidTube: null,
+        lockedMask: newLockedMask,
+      };
+    });
+  }, []);
+
+  // Phase 2b: clear animation overlay after return animation finishes
+  const finishPourAnim = useCallback(() => {
+    setState((prev) => ({ ...prev, pourAnim: null }));
+  }, []);
+
   const undo = useCallback(() => {
     setState((prev) => {
       if (prev.history.length === 0) return prev;
       const prevTubes = prev.history[prev.history.length - 1]!;
+      const prevLockedMask = prev.lockedMaskHistory[prev.lockedMaskHistory.length - 1]!;
       return {
         ...prev,
         tubes: prevTubes,
         selectedTube: null,
         moves: prev.moves.slice(0, -1),
         history: prev.history.slice(0, -1),
+        lockedMaskHistory: prev.lockedMaskHistory.slice(0, -1),
         undoCount: prev.undoCount + 1,
         prevCompletedCount: prevTubes.filter((t) => isTubeComplete(t)).length,
         comboCounter: 0,
         invalidTube: null,
         pourAnim: null,
+        lockedMask: prevLockedMask,
       };
     });
   }, []);
 
   const restart = useCallback(() => {
     setState((prev) => ({
-      ...createGameState(initialTubes),
+      ...createGameState(initialTubes, initialLockedMask),
       restartCount: prev.restartCount + 1,
     }));
-  }, [initialTubes]);
+  }, [initialTubes, initialLockedMask]);
 
   const levelComplete = isLevelComplete(state.tubes);
   const stuck = !levelComplete && checkStuck(state.tubes);
 
-  return { state, selectTube, undo, restart, levelComplete, stuck };
+  return { state, selectTube, commitPour, finishPourAnim, undo, restart, levelComplete, stuck };
 }

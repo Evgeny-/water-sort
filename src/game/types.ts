@@ -5,7 +5,7 @@ export type Color = string;
 export type Tube = Color[];
 
 /** Full tube capacity */
-export const TUBE_CAPACITY = 5;
+export const TUBE_CAPACITY = 4;
 
 /** A single move: pour from one tube to another */
 export interface Move {
@@ -20,6 +20,20 @@ export interface Level {
   colors: number;
   world: number;
   levelNumber: number;
+  /** Per-tube, per-segment locked mask (true = hidden). Parallel to tubes. */
+  lockedMask: boolean[][];
+}
+
+/** Data needed to drive the pour animation overlay */
+export interface PourAnimation {
+  fromIndex: number;
+  toIndex: number;
+  color: string;
+  count: number;
+  /** Snapshot of the source tube before pouring (used to render animated clone) */
+  sourceTubeBefore: Tube;
+  /** Snapshot of the source tube's locked mask before pouring */
+  sourceLockedBefore: boolean[];
 }
 
 /** Runtime game state */
@@ -30,6 +44,8 @@ export interface GameState {
   undoCount: number;
   restartCount: number;
   history: Tube[][];
+  /** History of locked masks (parallel to history) for undo */
+  lockedMaskHistory: boolean[][][];
   /** Number of consecutive tube completions in a row */
   comboCounter: number;
   /** Accumulated combo bonus points */
@@ -38,27 +54,28 @@ export interface GameState {
   prevCompletedCount: number;
   /** Tube index that just had an invalid pour attempt (for shake animation) */
   invalidTube: number | null;
+  /** Active pour animation (blocks input while non-null) */
+  pourAnim: PourAnimation | null;
+  /** Per-tube, per-segment locked mask — revealed as segments are poured away */
+  lockedMask: boolean[][];
 }
 
-/** Color palette — 16 distinct game colors */
+/** Color palette — 7 maximally distinct game colors */
 export const COLORS: Record<string, string> = {
-  red: "#ef4444",
-  blue: "#3b82f6",
-  green: "#22c55e",
-  yellow: "#eab308",
-  purple: "#a855f7",
-  orange: "#f97316",
-  pink: "#ec4899",
-  teal: "#14b8a6",
-  indigo: "#6366f1",
-  lime: "#84cc16",
-  cyan: "#06b6d4",
-  rose: "#f43f5e",
-  amber: "#f59e0b",
-  emerald: "#10b981",
-  violet: "#8b5cf6",
-  sky: "#0ea5e9",
+  red: "#e5304a",
+  blue: "#2979e5",
+  green: "#2db84b",
+  yellow: "#f5c800",
+  purple: "#9333ea",
+  orange: "#f07020",
+  teal: "#006262",
 };
+
+/** Persisted best result for a completed level */
+export interface LevelResult {
+  stars: number;
+  score: number;
+}
 
 /** Ordered list of color keys for level generation */
 export const COLOR_KEYS = Object.keys(COLORS);

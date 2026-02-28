@@ -1,24 +1,31 @@
 import { motion } from "framer-motion";
+import type { LevelResult } from "../game/types";
 
 interface LevelSelectProps {
   maxLevel: number;
+  results: Record<string, LevelResult>;
+  totalScore: number;
   onSelect: (level: number) => void;
 }
 
 const TOTAL_LEVELS = 200;
 
-export function LevelSelect({ maxLevel, onSelect }: LevelSelectProps) {
+export function LevelSelect({ maxLevel, results, totalScore, onSelect }: LevelSelectProps) {
   const levels = Array.from({ length: TOTAL_LEVELS }, (_, i) => i + 1);
 
   return (
     <div style={styles.container}>
       <h1 style={styles.title}>Water Sort</h1>
       <p style={styles.subtitle}>Choose a level</p>
+      {totalScore > 0 && (
+        <p style={styles.totalScore}>Score: {totalScore}</p>
+      )}
 
       <div style={styles.scrollArea}>
         <div style={styles.grid}>
           {levels.map((n) => {
             const isCurrent = n === maxLevel;
+            const result = results[String(n)];
 
             return (
               <motion.button
@@ -30,7 +37,21 @@ export function LevelSelect({ maxLevel, onSelect }: LevelSelectProps) {
                   ...(isCurrent ? styles.current : {}),
                 }}
               >
-                {n}
+                <span>{n}</span>
+                {result && (
+                  <span style={styles.starsRow}>
+                    {[1, 2, 3].map((s) => (
+                      <span
+                        key={s}
+                        style={{
+                          color: s <= result.stars ? "#eab308" : "#475569",
+                        }}
+                      >
+                        ★
+                      </span>
+                    ))}
+                  </span>
+                )}
               </motion.button>
             );
           })}
@@ -59,7 +80,14 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 14,
     color: "var(--text-secondary)",
     textAlign: "center",
-    marginBottom: 20,
+    marginBottom: 4,
+  },
+  totalScore: {
+    fontSize: 14,
+    color: "#eab308",
+    textAlign: "center" as const,
+    marginBottom: 16,
+    fontWeight: 600,
   },
   scrollArea: {
     flex: 1,
@@ -86,8 +114,16 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     fontFamily: "inherit",
     display: "flex",
+    flexDirection: "column" as const,
     alignItems: "center",
     justifyContent: "center",
+    gap: 2,
+  },
+  starsRow: {
+    display: "flex",
+    gap: 1,
+    fontSize: 10,
+    lineHeight: 1,
   },
   current: {
     border: "2px solid #3b82f6",

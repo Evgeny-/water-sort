@@ -1,33 +1,98 @@
-import { useMemo } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Tube } from "./Tube";
+import { PourAnimationOverlay } from "./PourAnimationOverlay";
 import { useGameState } from "../hooks/useGameState";
 import { calculateScore } from "../game/scoring";
 import type { Tube as TubeType } from "../game/types";
 
-/** Compute a CSS scale factor so all tubes fit on one screen */
-function getTubeScale(tubeCount: number): number {
-  if (tubeCount <= 10) return 1;
-  if (tubeCount <= 14) return 0.82;
-  if (tubeCount <= 20) return 0.68;
-  if (tubeCount <= 28) return 0.55;
-  if (tubeCount <= 38) return 0.46;
-  return 0.4;
+// Tube pixel dimensions (must match Tube.tsx constants)
+const TUBE_W = 64;
+const TUBE_H = 176;
+const GAP_X = 16;
+const GAP_Y = 32;
+// Extra vertical room for selected-tube lift + wave
+const LIFT_PADDING = 28;
+// Max grid width so tubes don't spread into one wide row on desktop
+const MAX_GRID_W = 480;
+// Horizontal padding inside the board area
+const BOARD_PAD_X = 16;
+
+interface GridLayout {
+  cols: number;
+  rows: number;
+  scale: number;
+  gridW: number; // unscaled grid width
+  gridH: number; // unscaled grid height
+}
+
+/**
+ * Compute the best grid layout so all tubes fill the available board area.
+ * Tries different column counts and picks the one with the largest scale.
+ * Returns the chosen layout so we can set explicit dimensions on the grid.
+ */
+function computeLayout(
+  tubeCount: number,
+  containerW: number,
+  containerH: number,
+): GridLayout {
+  const fallback: GridLayout = { cols: tubeCount, rows: 1, scale: 1, gridW: 0, gridH: 0 };
+  if (tubeCount === 0 || containerW <= 0 || containerH <= 0) return fallback;
+
+  const availW = Math.min(containerW - BOARD_PAD_X * 2, MAX_GRID_W);
+  const availH = containerH - LIFT_PADDING;
+  let best: GridLayout = fallback;
+
+  for (let cols = 1; cols <= tubeCount; cols++) {
+    const rows = Math.ceil(tubeCount / cols);
+    const gridW = cols * TUBE_W + (cols - 1) * GAP_X;
+    const gridH = rows * TUBE_H + (rows - 1) * GAP_Y;
+    const scaleX = availW / gridW;
+    const scaleY = availH / gridH;
+    const scale = Math.min(scaleX, scaleY, 1); // never zoom above 1
+    if (scale > best.scale || best.gridW === 0) {
+      best = { cols, rows, scale, gridW, gridH };
+    }
+  }
+
+  return best;
 }
 
 interface GameProps {
   initialTubes: TubeType[];
+  initialLockedMask: boolean[][];
   levelNumber: number;
   par: number;
   onNewLevel: () => void;
   onBack: () => void;
+  onLevelComplete: (levelNumber: number, stars: number, score: number) => void;
 }
 
-export function Game({ initialTubes, levelNumber, par, onNewLevel, onBack }: GameProps) {
-  const { state, selectTube, undo, restart, levelComplete, stuck } =
-    useGameState(initialTubes);
+export function Game({ initialTubes, initialLockedMask, levelNumber, par, onNewLevel, onBack, onLevelComplete }: GameProps) {
+  const { state, selectTube, commitPour, finishPourAnim, undo, restart, levelComplete, stuck } =
+    useGameState(initialTubes, initialLockedMask);
 
-  const scale = useMemo(() => getTubeScale(state.tubes.length), [state.tubes.length]);
+  const isAnimating = state.pourAnim !== null;
+
+  const boardRef = useRef<HTMLDivElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
+  const tubeRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const [layout, setLayout] = useState<GridLayout>({
+    cols: state.tubes.length, rows: 1, scale: 1, gridW: 0, gridH: 0,
+  });
+
+  const updateLayout = useCallback(() => {
+    const el = boardRef.current;
+    if (!el) return;
+    setLayout(computeLayout(state.tubes.length, el.clientWidth, el.clientHeight));
+  }, [state.tubes.length]);
+
+  useEffect(() => {
+    updateLayout();
+    const ro = new ResizeObserver(updateLayout);
+    if (boardRef.current) ro.observe(boardRef.current);
+    return () => ro.disconnect();
+  }, [updateLayout]);
 
   const scoreResult = levelComplete
     ? calculateScore(
@@ -38,6 +103,15 @@ export function Game({ initialTubes, levelNumber, par, onNewLevel, onBack }: Gam
         state.totalComboBonus,
       )
     : null;
+
+  // Report results to parent for persistence
+  const reportedRef = useRef(false);
+  useEffect(() => {
+    if (scoreResult && !reportedRef.current) {
+      reportedRef.current = true;
+      onLevelComplete(levelNumber, scoreResult.stars, scoreResult.score);
+    }
+  }, [scoreResult, onLevelComplete, levelNumber]);
 
   return (
     <div style={styles.container}>
@@ -55,20 +129,51 @@ export function Game({ initialTubes, levelNumber, par, onNewLevel, onBack }: Gam
       </div>
 
       {/* Game board */}
-      <div style={styles.board}>
+      <div ref={boardRef} style={styles.board}>
+        {/* Outer wrapper sized to the scaled grid so flexbox centering works */}
         <div style={{
-          ...styles.tubesGrid,
-          zoom: scale,
+          width: layout.gridW * layout.scale,
+          height: layout.gridH * layout.scale,
         }}>
-          {state.tubes.map((tube, i) => (
-            <Tube
-              key={i}
-              tube={tube}
-              selected={state.selectedTube === i}
-              invalid={state.invalidTube === i}
-              onClick={() => selectTube(i)}
-            />
-          ))}
+          <div ref={gridRef} style={{
+            ...styles.tubesGrid,
+            width: layout.gridW,
+            height: layout.gridH,
+            transform: `scale(${layout.scale})`,
+            transformOrigin: "top left",
+            position: "relative",
+          }}>
+            {state.tubes.map((tube, i) => {
+              const isAnimSource = state.pourAnim?.fromIndex === i;
+
+              return (
+                <div
+                  key={i}
+                  ref={(el) => { tubeRefs.current[i] = el; }}
+                  style={{ opacity: isAnimSource ? 0 : 1 }}
+                >
+                  <Tube
+                    tube={tube}
+                    selected={state.selectedTube === i}
+                    invalid={state.invalidTube === i}
+                    onClick={() => selectTube(i)}
+                    lockedMask={state.lockedMask[i]}
+                  />
+                </div>
+              );
+            })}
+
+            {/* Pour animation overlay — renders animated clone above the grid */}
+            {state.pourAnim && (
+              <PourAnimationOverlay
+                anim={state.pourAnim}
+                gridRef={gridRef}
+                tubeRefs={tubeRefs}
+                onPour={commitPour}
+                onFinished={finishPourAnim}
+              />
+            )}
+          </div>
         </div>
       </div>
 
@@ -91,14 +196,14 @@ export function Game({ initialTubes, levelNumber, par, onNewLevel, onBack }: Gam
         <button
           onClick={undo}
           style={styles.button}
-          disabled={state.moves.length === 0 || levelComplete}
+          disabled={state.moves.length === 0 || levelComplete || isAnimating}
         >
           ↩ Undo
         </button>
         <button
           onClick={restart}
           style={styles.button}
-          disabled={state.moves.length === 0 || levelComplete}
+          disabled={state.moves.length === 0 || levelComplete || isAnimating}
         >
           ↻ Restart
         </button>
@@ -272,17 +377,16 @@ const styles: Record<string, React.CSSProperties> = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    padding: "0 12px",
-    overflow: "visible",
+    padding: `0 ${BOARD_PAD_X}px`,
+    overflow: "hidden",
   },
   tubesGrid: {
     display: "flex",
-    gap: 10,
+    gap: GAP_X,
     flexWrap: "wrap" as const,
     justifyContent: "center",
     alignContent: "center",
-    maxWidth: 600,
-    rowGap: 28,
+    rowGap: GAP_Y,
   },
   controls: {
     display: "flex",
