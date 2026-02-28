@@ -1,7 +1,15 @@
 import { useRef, useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { IoArrowBack, IoArrowUndo, IoRefresh, IoVolumeHigh, IoVolumeMute, IoStar, IoLockClosed } from "react-icons/io5";
-import { Tube } from "./Tube";
+import {
+  IoArrowBack,
+  IoArrowUndo,
+  IoRefresh,
+  IoVolumeHigh,
+  IoVolumeMute,
+  IoStar,
+  IoLockClosed,
+} from "react-icons/io5";
+import { Tube, TubeSharedDefs } from "./Tube";
 import { PourAnimationOverlay } from "./PourAnimationOverlay";
 import { LevelCompleteOverlay } from "./LevelCompleteOverlay";
 import { useGameState } from "../hooks/useGameState";
@@ -43,7 +51,13 @@ function computeLayout(
   containerW: number,
   containerH: number,
 ): GridLayout {
-  const fallback: GridLayout = { cols: tubeCount, rows: 1, scale: 1, gridW: 0, gridH: 0 };
+  const fallback: GridLayout = {
+    cols: tubeCount,
+    rows: 1,
+    scale: 1,
+    gridW: 0,
+    gridH: 0,
+  };
   if (tubeCount === 0 || containerW <= 0 || containerH <= 0) return fallback;
 
   const availW = Math.min(containerW - BOARD_PAD_X * 2, MAX_GRID_W);
@@ -79,16 +93,41 @@ interface GameProps {
   onLevelComplete: (levelNumber: number, stars: number, score: number) => void;
 }
 
-export function Game({ initialTubes, initialLockedMask, levelNumber, par, paidTubes, tubeCost, totalScore, onSpendScore, onNewLevel, onBack, onLevelComplete }: GameProps) {
-  const { state, selectTube, unlockPaidTube, commitPour, finishPourAnim, undo, restart, levelComplete, stuck } =
-    useGameState(initialTubes, initialLockedMask);
+export function Game({
+  initialTubes,
+  initialLockedMask,
+  levelNumber,
+  par,
+  paidTubes,
+  tubeCost,
+  totalScore,
+  onSpendScore,
+  onNewLevel,
+  onBack,
+  onLevelComplete,
+}: GameProps) {
+  const {
+    state,
+    selectTube,
+    unlockPaidTube,
+    commitPour,
+    finishPourAnim,
+    undo,
+    restart,
+    levelComplete,
+    stuck,
+  } = useGameState(initialTubes, initialLockedMask);
   const { sfxMuted, toggleSfxMute } = useAudio();
 
   // Paid tube indices are the last N tubes in the array
   const paidTubeStart = initialTubes.length - paidTubes;
   const isPaidTube = (i: number) => i >= paidTubeStart;
-  const isPaidLocked = (i: number) => isPaidTube(i) && !state.unlockedPaidTubes.has(i);
-  const hasLockedPaidTubes = Array.from({ length: paidTubes }, (_, k) => paidTubeStart + k).some(isPaidLocked);
+  const isPaidLocked = (i: number) =>
+    isPaidTube(i) && !state.unlockedPaidTubes.has(i);
+  const hasLockedPaidTubes = Array.from(
+    { length: paidTubes },
+    (_, k) => paidTubeStart + k,
+  ).some(isPaidLocked);
   const canAfford = totalScore >= tubeCost;
 
   // Confirmation dialog state
@@ -110,7 +149,14 @@ export function Game({ initialTubes, initialLockedMask, levelNumber, par, paidTu
     }
     setShowBuyConfirm(false);
     audioManager.playButtonClick();
-  }, [paidTubeStart, initialTubes.length, state.unlockedPaidTubes, onSpendScore, tubeCost, unlockPaidTube]);
+  }, [
+    paidTubeStart,
+    initialTubes.length,
+    state.unlockedPaidTubes,
+    onSpendScore,
+    tubeCost,
+    unlockPaidTube,
+  ]);
 
   const cancelBuyTube = useCallback(() => {
     setShowBuyConfirm(false);
@@ -119,12 +165,25 @@ export function Game({ initialTubes, initialLockedMask, levelNumber, par, paidTu
 
   const isAnimating = state.pourAnim !== null;
 
+  // Delay showing stuck toast so the player has time to think
+  const [showStuck, setShowStuck] = useState(false);
+  useEffect(() => {
+    if (stuck) {
+      const timer = setTimeout(() => setShowStuck(true), 3000);
+      return () => clearTimeout(timer);
+    }
+    setShowStuck(false);
+  }, [stuck]);
+
   // --- Audio triggers ---
 
   // Play invalid sound when a tube shakes
   const prevInvalidRef = useRef<number | null>(null);
   useEffect(() => {
-    if (state.invalidTube !== null && state.invalidTube !== prevInvalidRef.current) {
+    if (
+      state.invalidTube !== null &&
+      state.invalidTube !== prevInvalidRef.current
+    ) {
       audioManager.playInvalid();
     }
     prevInvalidRef.current = state.invalidTube;
@@ -153,11 +212,18 @@ export function Game({ initialTubes, initialLockedMask, levelNumber, par, paidTu
   const gridRef = useRef<HTMLDivElement>(null);
   const tubeRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [layout, setLayout] = useState<GridLayout>({
-    cols: state.tubes.length, rows: 1, scale: 1, gridW: 0, gridH: 0,
+    cols: state.tubes.length,
+    rows: 1,
+    scale: 1,
+    gridW: 0,
+    gridH: 0,
   });
 
   // Count only visible tubes for layout (exclude locked paid tubes)
-  const visibleTubeCount = state.tubes.filter((_, i) => !isPaidLocked(i)).length;
+  const visibleTubeCount = state.tubes.filter(
+    (_, i) => !isPaidLocked(i),
+  ).length;
+  const disableIdleWave = visibleTubeCount >= 16;
 
   const updateLayout = useCallback(() => {
     const el = boardRef.current;
@@ -172,7 +238,9 @@ export function Game({ initialTubes, initialLockedMask, levelNumber, par, paidTu
     return () => ro.disconnect();
   }, [updateLayout]);
 
-  const [devSkipResult, setDevSkipResult] = useState<ScoreBreakdown | null>(null);
+  const [devSkipResult, setDevSkipResult] = useState<ScoreBreakdown | null>(
+    null,
+  );
 
   const devSkipLevel = useCallback(() => {
     const base = 100 + (levelNumber - 1) * 10;
@@ -184,7 +252,15 @@ export function Game({ initialTubes, initialLockedMask, levelNumber, par, paidTu
     const score = Math.max(0, base + efficiency - undoFine);
     const pct = base > 0 ? score / base : 0;
     const stars = pct >= 0.85 ? 3 : pct >= 0.5 ? 2 : 1;
-    setDevSkipResult({ base, efficiency, undoFine, bottleFine: 0, score, maxScore: base, stars });
+    setDevSkipResult({
+      base,
+      efficiency,
+      undoFine,
+      bottleFine: 0,
+      score,
+      maxScore: base,
+      stars,
+    });
   }, [levelNumber]);
 
   const handleRetry = useCallback(() => {
@@ -219,18 +295,31 @@ export function Game({ initialTubes, initialLockedMask, levelNumber, par, paidTu
       {/* Header */}
       <div style={styles.header}>
         <div style={styles.headerLeft}>
-          <button onClick={() => { audioManager.playButtonClick(); onBack(); }} className="btn btn-icon">
+          <button
+            onClick={() => {
+              audioManager.playButtonClick();
+              onBack();
+            }}
+            className="btn btn-icon"
+          >
             <IoArrowBack />
           </button>
           <span style={styles.levelLabel}>Level {levelNumber}</span>
           {totalScore > 0 && (
-            <span className="score-badge" style={{ fontSize: 12, padding: "2px 8px" }}>
+            <span
+              className="score-badge"
+              style={{ fontSize: 12, padding: "2px 8px" }}
+            >
               <IoStar style={{ fontSize: 10, color: "#eab308" }} /> {totalScore}
             </span>
           )}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <button onClick={toggleSfxMute} className="btn btn-icon" style={{ fontSize: 18 }}>
+          <button
+            onClick={toggleSfxMute}
+            className="btn btn-icon"
+            style={{ fontSize: 18 }}
+          >
             {sfxMuted ? <IoVolumeMute /> : <IoVolumeHigh />}
           </button>
           <span className="score-badge">
@@ -241,19 +330,25 @@ export function Game({ initialTubes, initialLockedMask, levelNumber, par, paidTu
 
       {/* Game board */}
       <div ref={boardRef} style={styles.board}>
+        <TubeSharedDefs />
         {/* Outer wrapper sized to the scaled grid so flexbox centering works */}
-        <div style={{
-          width: layout.gridW * layout.scale,
-          height: layout.gridH * layout.scale,
-        }}>
-          <div ref={gridRef} style={{
-            ...styles.tubesGrid,
-            width: layout.gridW,
-            height: layout.gridH,
-            transform: `scale(${layout.scale})`,
-            transformOrigin: "top left",
-            position: "relative",
-          }}>
+        <div
+          style={{
+            width: layout.gridW * layout.scale,
+            height: layout.gridH * layout.scale,
+          }}
+        >
+          <div
+            ref={gridRef}
+            style={{
+              ...styles.tubesGrid,
+              width: layout.gridW,
+              height: layout.gridH,
+              transform: `scale(${layout.scale})`,
+              transformOrigin: "top left",
+              position: "relative",
+            }}
+          >
             {state.tubes.map((tube, i) => {
               if (isPaidLocked(i)) return null;
               const isAnimSource = state.pourAnim?.fromIndex === i;
@@ -261,16 +356,26 @@ export function Game({ initialTubes, initialLockedMask, levelNumber, par, paidTu
               return (
                 <div
                   key={i}
-                  ref={(el) => { tubeRefs.current[i] = el; }}
-                  style={{ opacity: isAnimSource ? 0 : 1, position: "relative" }}
+                  ref={(el) => {
+                    tubeRefs.current[i] = el;
+                  }}
+                  style={{
+                    opacity: isAnimSource ? 0 : 1,
+                    position: "relative",
+                  }}
                 >
                   <Tube
                     tube={tube}
                     selected={state.selectedTube === i}
                     invalid={state.invalidTube === i}
-                    onClick={() => { audioManager.playTap(); selectTube(i); }}
+                    onClick={() => {
+                      audioManager.playTap();
+                      selectTube(i);
+                    }}
                     lockedMask={state.lockedMask[i]}
                     hidden={isAnimSource}
+                    disableIdleWave={disableIdleWave}
+                    simplified={disableIdleWave}
                   />
                 </div>
               );
@@ -290,15 +395,16 @@ export function Game({ initialTubes, initialLockedMask, levelNumber, par, paidTu
         </div>
       </div>
 
-      {/* Stuck banner */}
+      {/* Stuck toast — fixed position so it doesn't shift layout */}
       <AnimatePresence>
-        {stuck && (
+        {showStuck && (
           <motion.div
-            className="stuck-banner"
-            initial={{ opacity: 0, y: 20 }}
+            className="stuck-toast"
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            style={styles.stuckBanner}
+            exit={{ opacity: 0, y: 30 }}
+            transition={{ duration: 0.3 }}
+            style={styles.stuckToast}
           >
             No valid moves! Try undo or restart.
           </motion.div>
@@ -308,14 +414,20 @@ export function Game({ initialTubes, initialLockedMask, levelNumber, par, paidTu
       {/* Controls */}
       <div style={styles.controls}>
         <button
-          onClick={() => { audioManager.playUndo(); undo(); }}
+          onClick={() => {
+            audioManager.playUndo();
+            undo();
+          }}
           className="btn btn-control"
           disabled={state.moves.length === 0 || showComplete || isAnimating}
         >
           <IoArrowUndo /> Undo
         </button>
         <button
-          onClick={() => { audioManager.playButtonClick(); restart(); }}
+          onClick={() => {
+            audioManager.playButtonClick();
+            restart();
+          }}
           className="btn btn-control"
           disabled={state.moves.length === 0 || showComplete || isAnimating}
         >
@@ -328,11 +440,17 @@ export function Game({ initialTubes, initialLockedMask, levelNumber, par, paidTu
             disabled={!canAfford || isAnimating}
             style={{ color: canAfford ? "#fde68a" : undefined }}
           >
-            <IoLockClosed /> +Bottle <IoStar style={{ fontSize: 10, color: "#eab308" }} />{tubeCost}
+            <IoLockClosed /> Bottle{" "}
+            <IoStar style={{ fontSize: 10, color: "#eab308" }} />
+            {tubeCost}
           </button>
         )}
         {IS_DEV && !showComplete && (
-          <button onClick={devSkipLevel} className="btn btn-control" style={{ opacity: 0.5, fontSize: 11 }}>
+          <button
+            onClick={devSkipLevel}
+            className="btn btn-control"
+            style={{ opacity: 0.5, fontSize: 11 }}
+          >
             Skip
           </button>
         )}
@@ -357,16 +475,26 @@ export function Game({ initialTubes, initialLockedMask, levelNumber, par, paidTu
             >
               <p style={styles.confirmTitle}>Unlock extra bottle?</p>
               <p style={styles.confirmCost}>
-                <IoStar style={{ fontSize: 14, color: "#eab308" }} /> {tubeCost} points
+                <IoStar style={{ fontSize: 14, color: "#eab308" }} /> {tubeCost}{" "}
+                points
               </p>
               <p style={styles.confirmBalance}>
-                Your balance: <IoStar style={{ fontSize: 12, color: "#eab308" }} /> {totalScore}
+                Your balance:{" "}
+                <IoStar style={{ fontSize: 12, color: "#eab308" }} />{" "}
+                {totalScore}
                 {" → "}
-                <IoStar style={{ fontSize: 12, color: "#eab308" }} /> {totalScore - tubeCost}
+                <IoStar style={{ fontSize: 12, color: "#eab308" }} />{" "}
+                {totalScore - tubeCost}
               </p>
               <div style={styles.confirmButtons}>
-                <button onClick={cancelBuyTube} className="btn btn-control">Cancel</button>
-                <button onClick={confirmBuyTube} className="btn btn-control" style={{ color: "#fde68a" }}>
+                <button onClick={cancelBuyTube} className="btn btn-control">
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmBuyTube}
+                  className="btn btn-control"
+                  style={{ color: "#fde68a" }}
+                >
                   <IoLockClosed /> Unlock
                 </button>
               </div>
@@ -435,13 +563,20 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 16,
     padding: "20px",
   },
-  stuckBanner: {
-    textAlign: "center" as const,
-    padding: "10px 20px",
-    margin: "0 20px",
+  stuckToast: {
+    position: "fixed" as const,
+    bottom: 100,
+    left: "50%",
+    transform: "translateX(-50%)",
+    padding: "10px 24px",
+    borderRadius: 20,
+    background: "rgba(30, 30, 30, 0.9)",
     color: "#f87171",
     fontSize: 14,
     fontWeight: 500,
+    whiteSpace: "nowrap" as const,
+    zIndex: 50,
+    pointerEvents: "none" as const,
   },
   confirmBackdrop: {
     position: "fixed" as const,

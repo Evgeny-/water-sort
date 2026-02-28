@@ -44,73 +44,48 @@ const WALL_THICKNESS = 2;
 const neckLeft = (TOTAL_WIDTH - NECK_WIDTH) / 2;
 const neckRight = (TOTAL_WIDTH + NECK_WIDTH) / 2;
 
-// Outer bottle path — cubic bezier shoulders for a smooth rounded flare
-function bottlePath(): string {
+// Pre-computed SVG paths (all values are module-level constants, no need to recompute)
+const BOTTLE_PATH = (() => {
   const r = BOTTOM_RADIUS;
   const nr = NECK_RADIUS;
   const bodyTop = NECK_HEIGHT + SHOULDER_HEIGHT;
   return [
-    // Top-left of neck lip
     `M ${neckLeft + nr} 0`,
-    // Top edge
     `L ${neckRight - nr} 0`,
-    // Rounded top-right lip
     `Q ${neckRight} 0 ${neckRight} ${nr}`,
-    // Right neck wall down to shoulder start
     `L ${neckRight} ${NECK_HEIGHT}`,
-    // Rounded shoulder flare: neck → body (right side)
-    // Cubic bezier: first control keeps vertical from neck, second keeps horizontal into body
     `C ${neckRight} ${NECK_HEIGHT + SHOULDER_HEIGHT * 0.65} ${TOTAL_WIDTH} ${bodyTop - SHOULDER_HEIGHT * 0.35} ${TOTAL_WIDTH} ${bodyTop}`,
-    // Body right side down
     `L ${TOTAL_WIDTH} ${TOTAL_HEIGHT - r}`,
-    // Bottom-right curve
     `Q ${TOTAL_WIDTH} ${TOTAL_HEIGHT} ${TOTAL_WIDTH - r} ${TOTAL_HEIGHT}`,
-    // Bottom edge
     `L ${r} ${TOTAL_HEIGHT}`,
-    // Bottom-left curve
     `Q 0 ${TOTAL_HEIGHT} 0 ${TOTAL_HEIGHT - r}`,
-    // Body left side up
     `L 0 ${bodyTop}`,
-    // Rounded shoulder flare: body → neck (left side)
     `C 0 ${bodyTop - SHOULDER_HEIGHT * 0.35} ${neckLeft} ${NECK_HEIGHT + SHOULDER_HEIGHT * 0.65} ${neckLeft} ${NECK_HEIGHT}`,
-    // Left neck wall up
     `L ${neckLeft} ${nr}`,
-    // Rounded top-left lip
     `Q ${neckLeft} 0 ${neckLeft + nr} 0`,
     `Z`,
   ].join(" ");
-}
+})();
 
-// Clip path for the liquid interior (inset by wall thickness)
-// Stops at the shoulder curve — liquid never enters the neck
-function liquidClipPath(): string {
+const LIQUID_CLIP_PATH = (() => {
   const w = WALL_THICKNESS;
   const r = Math.max(BOTTOM_RADIUS - w, 2);
   const inL = neckLeft + w;
   const inR = neckRight - w;
   const bodyTop = NECK_HEIGHT + SHOULDER_HEIGHT;
   return [
-    // Start at top-right of shoulder (where neck meets body, right side)
     `M ${TOTAL_WIDTH - w} ${bodyTop}`,
-    // Right side down
     `L ${TOTAL_WIDTH - w} ${TOTAL_HEIGHT - r - w}`,
-    // Bottom-right curve
     `Q ${TOTAL_WIDTH - w} ${TOTAL_HEIGHT - w} ${TOTAL_WIDTH - r - w} ${TOTAL_HEIGHT - w}`,
-    // Bottom edge
     `L ${r + w} ${TOTAL_HEIGHT - w}`,
-    // Bottom-left curve
     `Q ${w} ${TOTAL_HEIGHT - w} ${w} ${TOTAL_HEIGHT - r - w}`,
-    // Left side up
     `L ${w} ${bodyTop}`,
-    // Shoulder curve left side: body → neck (rounded)
     `C ${w} ${bodyTop - SHOULDER_HEIGHT * 0.35} ${inL} ${NECK_HEIGHT + SHOULDER_HEIGHT * 0.65} ${inL} ${NECK_HEIGHT}`,
-    // Across the neck opening
     `L ${inR} ${NECK_HEIGHT}`,
-    // Shoulder curve right side: neck → body (rounded)
     `C ${inR} ${NECK_HEIGHT + SHOULDER_HEIGHT * 0.65} ${TOTAL_WIDTH - w} ${bodyTop - SHOULDER_HEIGHT * 0.35} ${TOTAL_WIDTH - w} ${bodyTop}`,
     `Z`,
   ].join(" ");
-}
+})();
 
 // Generate a wavy-top segment path using a smooth sine-like curve.
 // The wave is built from 4 cubic bezier segments that approximate a full sine wave
@@ -140,6 +115,35 @@ function wavySegmentPath(top: number, bottom: number, amp: number): string {
     `C ${qw - k} ${top + amp}, ${k} ${top}, 0 ${top}`,
     `Z`,
   ].join(" ");
+}
+
+/**
+ * Shared SVG gradient defs — render once in the parent container.
+ * Individual Tube SVGs reference these by ID.
+ */
+export function TubeSharedDefs() {
+  return (
+    <svg width={0} height={0} style={{ position: "absolute" }}>
+      <defs>
+        <linearGradient id="glassHighlight" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="rgba(255,255,255,0.18)" />
+          <stop offset="30%" stopColor="rgba(255,255,255,0.04)" />
+          <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+        </linearGradient>
+        <linearGradient id="glassShadow" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="rgba(0,0,0,0)" />
+          <stop offset="70%" stopColor="rgba(0,0,0,0.02)" />
+          <stop offset="100%" stopColor="rgba(0,0,0,0.1)" />
+        </linearGradient>
+        <linearGradient id="glintGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="rgba(255,255,255,0)" />
+          <stop offset="20%" stopColor="rgba(255,255,255,0.25)" />
+          <stop offset="80%" stopColor="rgba(255,255,255,0.25)" />
+          <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+        </linearGradient>
+      </defs>
+    </svg>
+  );
 }
 
 /** Continuously animated wavy segment using rAF.
@@ -226,7 +230,7 @@ export function TubeSVG({
     >
       <defs>
         <clipPath id={clipId}>
-          <path d={liquidClipPath()} />
+          <path d={LIQUID_CLIP_PATH} />
         </clipPath>
 
         {/* Glass highlight gradient — left-side light streak */}
@@ -253,7 +257,7 @@ export function TubeSVG({
       </defs>
 
       {/* Glass body fill */}
-      <path d={bottlePath()} fill="rgba(148, 163, 184, 0.10)" />
+      <path d={BOTTLE_PATH} fill="rgba(148, 163, 184, 0.10)" />
 
       {/* Liquid segments — clipped to interior */}
       <g clipPath={`url(#${clipId})`}>
@@ -319,8 +323,8 @@ export function TubeSVG({
       </g>
 
       {/* Glass highlight overlay — full bottle */}
-      <path d={bottlePath()} fill={`url(#${clipId}-hl)`} />
-      <path d={bottlePath()} fill={`url(#${clipId}-sh)`} />
+      <path d={BOTTLE_PATH} fill={`url(#${clipId}-hl)`} />
+      <path d={BOTTLE_PATH} fill={`url(#${clipId}-sh)`} />
 
       {/* Left glint stripe */}
       <rect
@@ -342,7 +346,7 @@ export function TubeSVG({
 
       {/* Bottle outline */}
       <path
-        d={bottlePath()}
+        d={BOTTLE_PATH}
         fill="none"
         stroke={border}
         strokeWidth={WALL_THICKNESS}
@@ -360,6 +364,10 @@ interface TubeProps {
   lockedMask?: boolean[];
   /** True while this tube is hidden behind the pour animation overlay */
   hidden?: boolean;
+  /** Disable idle wave animation for performance (active waves on select/fill still work) */
+  disableIdleWave?: boolean;
+  /** Skip glass detail overlays for performance with many bottles */
+  simplified?: boolean;
 }
 
 export function Tube({
@@ -369,9 +377,12 @@ export function Tube({
   onClick,
   lockedMask,
   hidden,
+  disableIdleWave,
+  simplified,
 }: TubeProps) {
   const complete = isTubeComplete(tube, lockedMask);
-  const clipId = `bottle-clip-${Math.random().toString(36).slice(2, 9)}`;
+  // Stable unique ID so SVG defs don't remount every render
+  const clipId = useRef(`bottle-clip-${Math.random().toString(36).slice(2, 9)}`).current;
   // Random phase offset so each bottle's idle wave is out of sync
   const wavePhase = useRef(Math.random() * Math.PI * 2).current;
 
@@ -504,34 +515,12 @@ export function Tube({
       >
         <defs>
           <clipPath id={clipId}>
-            <path d={liquidClipPath()} />
+            <path d={LIQUID_CLIP_PATH} />
           </clipPath>
-
-          {/* Glass highlight gradient — left-side light streak */}
-          <linearGradient id="glassHighlight" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="rgba(255,255,255,0.18)" />
-            <stop offset="30%" stopColor="rgba(255,255,255,0.04)" />
-            <stop offset="100%" stopColor="rgba(255,255,255,0)" />
-          </linearGradient>
-
-          {/* Subtle right-side shadow */}
-          <linearGradient id="glassShadow" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="rgba(0,0,0,0)" />
-            <stop offset="70%" stopColor="rgba(0,0,0,0.02)" />
-            <stop offset="100%" stopColor="rgba(0,0,0,0.1)" />
-          </linearGradient>
-
-          {/* Vertical light glint on left side of body */}
-          <linearGradient id="glintGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="rgba(255,255,255,0)" />
-            <stop offset="20%" stopColor="rgba(255,255,255,0.25)" />
-            <stop offset="80%" stopColor="rgba(255,255,255,0.25)" />
-            <stop offset="100%" stopColor="rgba(255,255,255,0)" />
-          </linearGradient>
         </defs>
 
         {/* Glass body fill */}
-        <path d={bottlePath()} fill="rgba(148, 163, 184, 0.10)" />
+        <path d={BOTTLE_PATH} fill="rgba(148, 163, 184, 0.10)" />
 
         {/* Liquid segments — clipped to interior */}
         <g clipPath={`url(#${clipId})`}>
@@ -552,13 +541,18 @@ export function Tube({
             const segKey = isNew ? `${i}-${gen}` : i;
 
             // Wave amplitude target for the top segment:
-            // selected → full, filling → full, idle → subtle
+            // selected → full, filling → full, idle → subtle (or 0 if disabled)
+            const isActive = selected || fillWave;
             const amp = isTop
-              ? selected || fillWave
+              ? isActive
                 ? WAVE_AMP
-                : WAVE_AMP_IDLE
+                : disableIdleWave
+                  ? 0
+                  : WAVE_AMP_IDLE
               : 0;
-            const waveSpeed = selected || fillWave ? 5 : 3;
+            const waveSpeed = isActive ? 5 : 3;
+            // Skip WavySegment entirely when idle wave is disabled and not active
+            const useStaticTop = isTop && !isActive && disableIdleWave;
 
             return (
               <g key={segKey}>
@@ -605,6 +599,15 @@ export function Tube({
                       />
                     </g>
                   </>
+                ) : useStaticTop ? (
+                  /* Top segment static (idle wave disabled for performance) */
+                  <rect
+                    x={0}
+                    y={segTop}
+                    width={TOTAL_WIDTH}
+                    height={SEGMENT_HEIGHT + 1}
+                    fill={baseColor}
+                  />
                 ) : isTop ? (
                   /* Top segment with continuous wave (amplitude smoothly adjusts) */
                   <WavySegment
@@ -648,9 +651,7 @@ export function Tube({
                     fontSize={18}
                     fontWeight={700}
                     style={{ pointerEvents: "none" }}
-                    initial={
-                      isRevealing ? { opacity: 0.6, scale: 1 } : undefined
-                    }
+                    initial={{ opacity: 0.6, scale: 1 }}
                     animate={
                       isRevealing
                         ? { opacity: 0, scale: 1.5 }
@@ -671,31 +672,33 @@ export function Tube({
           })}
         </g>
 
-        {/* Glass highlight overlay — full bottle */}
-        <path d={bottlePath()} fill="url(#glassHighlight)" />
-        <path d={bottlePath()} fill="url(#glassShadow)" />
+        {/* Glass highlight and shadow overlays — always shown for volume */}
+        <path d={BOTTLE_PATH} fill="url(#glassHighlight)" />
+        <path d={BOTTLE_PATH} fill="url(#glassShadow)" />
 
-        {/* Left glint stripe */}
-        <rect
-          x={4}
-          y={NECK_HEIGHT + SHOULDER_HEIGHT}
-          width={3}
-          height={BODY_HEIGHT - 8}
-          rx={1.5}
-          fill="url(#glintGrad)"
-        />
-
-        {/* Small specular dot near top-left of body */}
-        <circle
-          cx={10}
-          cy={NECK_HEIGHT + SHOULDER_HEIGHT}
-          r={3}
-          fill="rgba(255,255,255,0.2)"
-        />
+        {/* Extra glass details — skip when simplified for performance */}
+        {!simplified && (
+          <>
+            <rect
+              x={4}
+              y={NECK_HEIGHT + SHOULDER_HEIGHT}
+              width={3}
+              height={BODY_HEIGHT - 8}
+              rx={1.5}
+              fill="url(#glintGrad)"
+            />
+            <circle
+              cx={10}
+              cy={NECK_HEIGHT + SHOULDER_HEIGHT}
+              r={3}
+              fill="rgba(255,255,255,0.2)"
+            />
+          </>
+        )}
 
         {/* Bottle outline */}
         <path
-          d={bottlePath()}
+          d={BOTTLE_PATH}
           fill="none"
           stroke={borderColor}
           strokeWidth={WALL_THICKNESS}
