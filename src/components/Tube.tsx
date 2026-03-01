@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback, useState } from "react";
+import { useRef, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { type Tube as TubeType, TUBE_CAPACITY, COLORS } from "../game/types";
 import { isTubeComplete } from "../game/engine";
@@ -90,7 +90,7 @@ const LIQUID_CLIP_PATH = (() => {
 // Generate a wavy-top segment path using a smooth sine-like curve.
 // The wave is built from 4 cubic bezier segments that approximate a full sine wave
 // across the bottle width, with continuous tangent at every join point.
-const WAVE_AMP_IDLE = 1;
+const WAVE_AMP_IDLE = 1.5;
 const WAVE_AMP = 3;
 function wavySegmentPath(top: number, bottom: number, amp: number): string {
   const w = TOTAL_WIDTH;
@@ -146,9 +146,48 @@ export function TubeSharedDefs() {
   );
 }
 
-/** Continuously animated wavy segment using rAF.
- *  `targetAmp` is smoothly lerped so amplitude changes feel natural.
- *  `speed` controls oscillation rate (rad/s). `phase` offsets the start. */
+/**
+ * Build a wide wavy path (3× bottle width) for horizontal scrolling.
+ * Repeats the sine wave pattern so scrolling by one wavelength (TOTAL_WIDTH)
+ * loops seamlessly. The bottle clipPath hides the overflow.
+ */
+function wideWavyPath(top: number, bottom: number, amp: number): string {
+  const w = TOTAL_WIDTH;
+  const qw = w / 4;
+  const k = qw * 0.5523;
+
+  // Path spans from x = -w to x = 2w (3 wavelengths)
+  const parts: string[] = [
+    `M ${-w} ${bottom + 1}`,
+    `L ${2 * w} ${bottom + 1}`,
+    `L ${2 * w} ${top}`,
+  ];
+
+  // Draw wavy top edge right-to-left, 3 full wavelengths
+  for (let i = 0; i < 3; i++) {
+    const ox = 2 * w - i * w;
+    parts.push(
+      `C ${ox - k} ${top}, ${ox - qw + k} ${top - amp}, ${ox - qw} ${top - amp}`,
+      `C ${ox - qw - k} ${top - amp}, ${ox - 2 * qw + k} ${top}, ${ox - 2 * qw} ${top}`,
+      `C ${ox - 2 * qw - k} ${top}, ${ox - 3 * qw + k} ${top + amp}, ${ox - 3 * qw} ${top + amp}`,
+      `C ${ox - 3 * qw - k} ${top + amp}, ${ox - 4 * qw + k} ${top}, ${ox - 4 * qw} ${top}`,
+    );
+  }
+
+  parts.push(`Z`);
+  return parts.join(" ");
+}
+
+/**
+ * CSS-animated wavy segment. A static rect fills the segment body.
+ * A wide wavy strip scrolls horizontally for a flowing water effect.
+ * When active (selected/filling), a vertical bob is layered on top.
+ *
+ * The geometry always reserves space for the active amplitude so
+ * nothing jumps when switching between active/idle — only the bob
+ * animation toggles, with its amplitude driven by a CSS variable
+ * that transitions smoothly.
+ */
 function WavySegment({
   top,
   bottom,
@@ -164,39 +203,45 @@ function WavySegment({
   phase: number;
   fill: string;
 }) {
-  const pathRef = useRef<SVGPathElement>(null);
-  const ampRef = useRef(targetAmp);
-  const targetRef = useRef(targetAmp);
-  targetRef.current = targetAmp;
+  if (targetAmp <= 0) {
+    return <path d={wavySegmentPath(top, bottom, 0)} fill={fill} />;
+  }
 
-  const animate = useCallback(
-    (time: number) => {
-      // Smoothly lerp current amplitude toward target
-      const lerpSpeed = 0.07; // per frame, ~4-5 frames to settle
-      ampRef.current += (targetRef.current - ampRef.current) * lerpSpeed;
+  const duration = (2 * Math.PI) / speed;
+  const delay = -(phase / speed);
+  const isActive = targetAmp >= WAVE_AMP;
+  // Always use WAVE_AMP for geometry so nothing shifts on active/idle toggle
+  const stripTop = top + WAVE_AMP * 2;
 
-      const t = time / 1000;
-      const sine = Math.sin(t * speed + phase);
-      const currentAmp = ampRef.current * sine;
-
-      if (pathRef.current) {
-        pathRef.current.setAttribute(
-          "d",
-          wavySegmentPath(top, bottom, currentAmp),
-        );
-      }
-      rafRef.current = requestAnimationFrame(animate);
-    },
-    [top, bottom, speed, phase],
+  return (
+    <g>
+      {/* Static body — never moves, anchors the bottom */}
+      <rect
+        x={0}
+        y={stripTop}
+        width={TOTAL_WIDTH}
+        height={bottom - stripTop + 1}
+        fill={fill}
+      />
+      {/* Outer group: always runs bob animation, amplitude goes to 0 when idle */}
+      <g
+        className="tube-wave-bob"
+        style={{
+          animation: `tubeWaveBob ${duration * 3}s ease-in-out ${delay}s infinite`,
+          ["--bob-amp" as string]: isActive ? `${WAVE_AMP}px` : "0px",
+        }}
+      >
+        {/* Wide wavy strip — scrolls horizontally */}
+        <path
+          d={wideWavyPath(stripTop, bottom, targetAmp)}
+          fill={fill}
+          style={{
+            animation: `tubeWave ${duration * 1.5}s linear ${delay}s infinite`,
+          }}
+        />
+      </g>
+    </g>
   );
-
-  const rafRef = useRef(0);
-  useEffect(() => {
-    rafRef.current = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(rafRef.current);
-  }, [animate]);
-
-  return <path ref={pathRef} d={wavySegmentPath(top, bottom, 0)} fill={fill} />;
 }
 
 /**
