@@ -15,105 +15,127 @@ interface DifficultyParams {
 }
 
 /**
+ * Challenge level — every 5th level starting at 10.
+ * Uses 1 empty tube with low color count (3c or 4c) for a tight squeeze.
+ * Only 3c×2 (~30% solve) and 4c×2 (~10% solve) work with 1 empty.
+ */
+function getChallengeParams(levelNumber: number): DifficultyParams | null {
+  if (levelNumber < 10 || levelNumber % 5 !== 0) return null;
+
+  // Early challenges: 3c×2, 1 empty (~30% solve rate)
+  if (levelNumber <= 30)
+    return {
+      colors: 3,
+      tubesPerColor: 2,
+      emptyTubes: 1,
+      lockedPercentage: 0.3,
+      paidTubes: 1,
+      par: 17,
+    };
+  // Later challenges: 4c×2, 1 empty (~10% solve rate)
+  return {
+    colors: 4,
+    tubesPerColor: 2,
+    emptyTubes: 1,
+    lockedPercentage: 0.4,
+    paidTubes: 1,
+    par: 23,
+  };
+}
+
+/**
  * Difficulty curve — monotonically increasing.
  *
- * After the tutorial (levels 1–6 with 2 empty tubes), we lock to 1 empty
- * tube for the rest of the game. Difficulty scales through colors (3→7)
- * and locked percentage (0→90%).
+ * Base difficulty uses 2 empty tubes so every level is solvable for free.
+ * Every 5th level (from level 10) is a "challenge" with 1 empty tube
+ * using only 3c or 4c (the only configs that work with 1 empty).
  *
- * tubesPerColor stays at 2 throughout — fewer copies per color = tighter puzzles.
- * Filled tubes = colors × 2. Solver runs when filled ≤ 8.
+ * Progression: colors (3→7) and tubesPerColor (2→3) drive difficulty.
+ * Lock percentage adds visual complexity but doesn't affect solve rate much.
  */
 function getDifficulty(levelNumber: number): DifficultyParams {
-  // Levels 1–3: 3×2=6 filled, 2 empty — tutorial
-  if (levelNumber <= 3)
+  // Check for challenge level first
+  const challenge = getChallengeParams(levelNumber);
+  if (challenge) return challenge;
+
+  // Levels 1–5: 3c×2, 2 empty — tutorial
+  if (levelNumber <= 5)
     return {
       colors: 3,
       tubesPerColor: 2,
       emptyTubes: 2,
       lockedPercentage: 0.15,
       paidTubes: 1,
-      par: 15,
+      par: 18,
     };
-  // Levels 4–6: 4×2=8 filled, 2 empty — introduce 4th color
-  if (levelNumber <= 6)
+  // Levels 6–10: 4c×2, 2 empty — introduce 4th color
+  if (levelNumber <= 10)
     return {
       colors: 4,
       tubesPerColor: 2,
       emptyTubes: 2,
-      lockedPercentage: 0.4,
-      paidTubes: 1,
-      par: 20,
-    };
-  // Levels 7–14: 3×2=6 filled, 1 empty — first squeeze
-  if (levelNumber <= 14)
-    return {
-      colors: 3,
-      tubesPerColor: 2,
-      emptyTubes: 1,
       lockedPercentage: 0.2,
       paidTubes: 1,
-      par: 21,
+      par: 27,
     };
-  // Levels 15–25: 4 colors, 1 empty — relief via low locks
-  if (levelNumber <= 25)
-    return {
-      colors: 4,
-      tubesPerColor: 2,
-      emptyTubes: 1,
-      lockedPercentage: 0.1,
-      paidTubes: 1,
-      par: 20,
-    };
-
-  // Levels 26–35: 5×3=15 filled, 1 empty — back to hard, big board
-  if (levelNumber <= 35)
-    return {
-      colors: 5,
-      tubesPerColor: 3,
-      emptyTubes: 1,
-      lockedPercentage: 0.4,
-      paidTubes: 1,
-      par: 30,
-    };
-  // Levels 36–55: 4 colors, 1 empty, heavy locks — hard
-  if (levelNumber <= 55)
-    return {
-      colors: 4,
-      tubesPerColor: 2,
-      emptyTubes: 1,
-      lockedPercentage: 0.4,
-      paidTubes: 1,
-      par: 25,
-    };
-  // Levels 56–70: 5 colors, 1 empty — more locks
-  if (levelNumber <= 70)
+  // Levels 11–20: 5c×2, 2 empty — medium-easy
+  if (levelNumber <= 20)
     return {
       colors: 5,
       tubesPerColor: 2,
-      emptyTubes: 1,
-      lockedPercentage: 0.7,
-      paidTubes: 1,
-      par: 30,
-    };
-  // Levels 71–90: 6×2=12 filled, 1 empty — all colors
-  if (levelNumber <= 90)
-    return {
-      colors: 6,
-      tubesPerColor: 2,
-      emptyTubes: 1,
-      lockedPercentage: 0.8,
+      emptyTubes: 2,
+      lockedPercentage: 0.3,
       paidTubes: 1,
       par: 35,
     };
-  // 91+: 7×2=14 filled, 1 empty — maximum difficulty
+  // Levels 21–35: 6c×2, 2 empty — medium
+  if (levelNumber <= 35)
+    return {
+      colors: 6,
+      tubesPerColor: 2,
+      emptyTubes: 2,
+      lockedPercentage: 0.4,
+      paidTubes: 1,
+      par: 44,
+    };
+  // Levels 36–50: 5c×3, 2 empty — medium-hard, bigger board
+  if (levelNumber <= 50)
+    return {
+      colors: 5,
+      tubesPerColor: 3,
+      emptyTubes: 2,
+      lockedPercentage: 0.5,
+      paidTubes: 1,
+      par: 53,
+    };
+  // Levels 51–70: 6c×3, 2 empty — hard
+  if (levelNumber <= 70)
+    return {
+      colors: 6,
+      tubesPerColor: 3,
+      emptyTubes: 2,
+      lockedPercentage: 0.6,
+      paidTubes: 1,
+      par: 68,
+    };
+  // Levels 71–90: 7c×2, 2 empty — very hard
+  if (levelNumber <= 90)
+    return {
+      colors: 7,
+      tubesPerColor: 2,
+      emptyTubes: 2,
+      lockedPercentage: 0.7,
+      paidTubes: 1,
+      par: 53,
+    };
+  // 91+: 7c×3, 2 empty — hardest
   return {
     colors: 7,
-    tubesPerColor: 2,
-    emptyTubes: 1,
-    lockedPercentage: 0.9,
+    tubesPerColor: 3,
+    emptyTubes: 2,
+    lockedPercentage: 0.8,
     paidTubes: 1,
-    par: 35,
+    par: 83,
   };
 }
 

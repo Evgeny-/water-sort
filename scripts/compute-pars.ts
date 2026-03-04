@@ -45,16 +45,16 @@ function estimatePar(filledTubeCount: number): number {
   return Math.floor(filledTubeCount * (TUBE_CAPACITY - 1.5));
 }
 
-// Tiers from getDifficulty
+// Tiers from getDifficulty (normal levels with 2 empty)
 const TIERS = [
   { name: "1–5",    colors: 3, tpc: 2, empty: 2, paid: 1 },
-  { name: "6–12",   colors: 4, tpc: 2, empty: 2, paid: 1 },
-  { name: "13–20",  colors: 4, tpc: 2, empty: 1, paid: 1 },
-  { name: "21–35",  colors: 5, tpc: 2, empty: 1, paid: 1 },
-  { name: "36–55",  colors: 6, tpc: 2, empty: 1, paid: 1 },
-  { name: "56–80",  colors: 6, tpc: 2, empty: 1, paid: 1 },
-  { name: "81–110", colors: 7, tpc: 2, empty: 1, paid: 1 },
-  { name: "111+",   colors: 7, tpc: 2, empty: 1, paid: 1 },
+  { name: "6–10",   colors: 4, tpc: 2, empty: 2, paid: 1 },
+  { name: "11–20",  colors: 5, tpc: 2, empty: 2, paid: 1 },
+  { name: "21–35",  colors: 6, tpc: 2, empty: 2, paid: 1 },
+  { name: "36–50",  colors: 5, tpc: 3, empty: 2, paid: 1 },
+  { name: "51–70",  colors: 6, tpc: 3, empty: 2, paid: 1 },
+  { name: "71–90",  colors: 7, tpc: 2, empty: 2, paid: 1 },
+  { name: "91+",    colors: 7, tpc: 3, empty: 2, paid: 1 },
 ];
 
 console.log("Par computation per tier");

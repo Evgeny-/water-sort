@@ -27,8 +27,9 @@ const SIMS_PER_LEVEL = 500;
 const MAX_MOVES = 400;
 
 // One sample per tier midpoint (matching getDifficulty breakpoints)
-// Tiers: ≤3, ≤6, ≤14, ≤25, ≤35, ≤55, ≤70, ≤90, 91+
-const TEST_LEVELS = [2, 5, 10, 20, 30, 45, 63, 80, 120];
+// Tiers: ≤5, ≤10, ≤20, ≤35, ≤50, ≤70, ≤90, 91+
+// Also test challenge levels (every 5th) separately
+const TEST_LEVELS = [3, 8, 10, 15, 20, 28, 30, 43, 45, 60, 65, 80, 85, 120];
 
 function hashState(tubes: Tube[]): string {
   const h: string[] = [];

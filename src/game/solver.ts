@@ -360,8 +360,8 @@ export function solveWithMetrics(tubes: Tube[]): SolveMetrics {
 
 // ─── Fast heuristic solvability check (for level generation) ─────
 
-const HEURISTIC_MAX_MOVES = 400;
-const HEURISTIC_ATTEMPTS = 30;
+const HEURISTIC_MAX_MOVES = 200;
+const HEURISTIC_ATTEMPTS = 10;
 
 /**
  * Fast solvability check using heuristic simulation.
