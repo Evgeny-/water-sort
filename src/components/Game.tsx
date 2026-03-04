@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useCallback } from "react";
+import { useRef, useState, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   IoArrowBack,
@@ -13,6 +13,7 @@ import { Tube, TubeSharedDefs } from "./Tube";
 import { PourAnimationOverlay } from "./PourAnimationOverlay";
 import { LevelCompleteOverlay } from "./LevelCompleteOverlay";
 import { useGameState } from "../hooks/useGameState";
+import { useAutoSolver } from "../hooks/useAutoSolver";
 import { useAudio } from "../hooks/useAudio";
 import { audioManager } from "../audio/audioManager";
 import { calculateScore } from "../game/scoring";
@@ -116,6 +117,25 @@ export function Game({
     (_, k) => paidTubeStart + k,
   ).some(isPaidLocked);
   const canAfford = totalScore >= tubeCost;
+
+  // Compute excluded indices for auto-solver (paid locked tubes aren't rendered)
+  const solverExcludeIndices = useMemo(() => {
+    const excluded = new Set<number>();
+    for (let i = paidTubeStart; i < initialTubes.length; i++) {
+      if (!state.unlockedPaidTubes.has(i)) excluded.add(i);
+    }
+    return excluded;
+  }, [paidTubeStart, initialTubes.length, state.unlockedPaidTubes]);
+
+  const autoSolver = useAutoSolver({
+    tubes: state.tubes,
+    lockedMask: state.lockedMask,
+    pourAnim: state.pourAnim,
+    selectedTube: state.selectedTube,
+    levelComplete,
+    selectTube,
+    excludeIndices: solverExcludeIndices,
+  });
 
   // Confirmation dialog state
   const [showBuyConfirm, setShowBuyConfirm] = useState(false);
@@ -434,6 +454,15 @@ export function Game({
             <IoLockClosed /> Bottle{" "}
             <IoStar style={{ fontSize: 10, color: "#eab308" }} />
             {tubeCost}
+          </button>
+        )}
+        {IS_DEV && !showComplete && (
+          <button
+            onClick={autoSolver.toggle}
+            className="btn btn-control"
+            style={{ opacity: autoSolver.running ? 1 : 0.5, fontSize: 11 }}
+          >
+            {autoSolver.running ? "Stop" : "Solve"}
           </button>
         )}
         {IS_DEV && !showComplete && (

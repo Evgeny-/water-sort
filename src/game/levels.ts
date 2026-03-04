@@ -1,5 +1,6 @@
 import { type Tube, type Level, TUBE_CAPACITY, COLOR_KEYS } from "./types";
 import { isLevelComplete } from "./engine";
+import { isSolvableHeuristic } from "./solver";
 
 interface DifficultyParams {
   colors: number;
@@ -52,7 +53,7 @@ function getDifficulty(levelNumber: number): DifficultyParams {
       emptyTubes: 1,
       lockedPercentage: 0.2,
       paidTubes: 1,
-      par: 16,
+      par: 21,
     };
   // Levels 15–25: 4 colors, 1 empty — relief via low locks
   if (levelNumber <= 25)
@@ -207,13 +208,43 @@ export function createLevel(levelNumber: number): Level {
   } = getDifficulty(levelNumber);
   // Total empty tubes includes both free and paid (paid are appended at the end)
   const totalEmptyTubes = emptyTubes + paidTubes;
+  const filledCount = colors * tubesPerColor;
+  // Paid tube indices start after filled + free empty tubes
+  const paidStart = filledCount + emptyTubes;
 
-  const maxAttempts = 20;
+  // Build exclude set for paid tubes
+  const excludeIndices = new Set<number>();
+  for (let i = paidStart; i < filledCount + totalEmptyTubes; i++) {
+    excludeIndices.add(i);
+  }
+
+  const maxAttempts = 200;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const tubes = generateTubes(colors, tubesPerColor, totalEmptyTubes);
 
     // Reject already-solved configurations or tubes with a pre-completed tube
+    if (isLevelComplete(tubes)) continue;
+    if (hasDuplicateTube(tubes)) continue;
+
+    // Verify solvable WITHOUT paid tubes (player must be able to solve for free)
+    if (!isSolvableHeuristic(tubes, excludeIndices)) continue;
+
+    return {
+      tubes,
+      par,
+      colors,
+      world: Math.ceil(levelNumber / 20),
+      levelNumber,
+      lockedMask: generateLockedMask(tubes, lockedPercentage),
+      paidTubes,
+      tubeCost: getTubeCost(levelNumber),
+    };
+  }
+
+  // Fallback — generate without paid tubes to guarantee solvability
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const tubes = generateTubes(colors, tubesPerColor, totalEmptyTubes);
     if (isLevelComplete(tubes)) continue;
     if (hasDuplicateTube(tubes)) continue;
 
@@ -229,7 +260,7 @@ export function createLevel(levelNumber: number): Level {
     };
   }
 
-  // Fallback
+  // Ultimate fallback
   const tubes = generateTubes(colors, tubesPerColor, totalEmptyTubes);
   return {
     tubes,

@@ -53,9 +53,10 @@ function applyPour(tubes: Tube[], from: number, to: number): Tube[] {
 
 interface Move { from: number; to: number }
 
-function getValidMoves(state: Tube[]): Move[] {
+function getValidMoves(state: Tube[], excludeIndices?: Set<number>): Move[] {
   const moves: Move[] = [];
   for (let from = 0; from < state.length; from++) {
+    if (excludeIndices?.has(from)) continue;
     const src = state[from]!;
     if (src.length === 0) continue;
     if (src.length === TUBE_CAPACITY && src.every(c => c === src[0])) continue;
@@ -67,6 +68,7 @@ function getValidMoves(state: Tube[]): Move[] {
     let usedEmpty = false;
     for (let to = 0; to < state.length; to++) {
       if (from === to) continue;
+      if (excludeIndices?.has(to)) continue;
       const dst = state[to]!;
       if (dst.length >= TUBE_CAPACITY) continue;
       if (dst.length > 0 && dst[dst.length - 1] !== srcTop) continue;
@@ -126,14 +128,14 @@ function scoreMove(state: Tube[], m: Move): number {
   return -1;
 }
 
-function simulateHeuristic(tubes: Tube[]): { solved: boolean; moves: number } {
+function simulateHeuristic(tubes: Tube[], excludeIndices?: Set<number>): { solved: boolean; moves: number } {
   let state = tubes;
   const visited = new Set<string>();
   visited.add(hashState(state));
 
   for (let step = 0; step < MAX_MOVES; step++) {
     if (isLevelComplete(state)) return { solved: true, moves: step };
-    const moves = getValidMoves(state);
+    const moves = getValidMoves(state, excludeIndices);
     if (moves.length === 0) return { solved: false, moves: step };
 
     // Score all moves
@@ -208,8 +210,14 @@ for (const levelNum of TEST_LEVELS) {
 
   for (let p = 0; p < LEVELS_PER_TIER; p++) {
     const level = createLevel(levelNum);
+    // Exclude paid tubes — simulate a player who hasn't paid
+    const excludeIndices = new Set<number>();
+    const paidStart = level.tubes.length - level.paidTubes;
+    for (let i = paidStart; i < level.tubes.length; i++) {
+      excludeIndices.add(i);
+    }
     for (let s = 0; s < SIMS_PER_LEVEL; s++) {
-      const result = simulateHeuristic(level.tubes);
+      const result = simulateHeuristic(level.tubes, excludeIndices);
       totalSims++;
       if (result.solved) {
         totalSolved++;

@@ -8,7 +8,7 @@
 
 import { type Tube, TUBE_CAPACITY, COLOR_KEYS } from "../src/game/types";
 import { isLevelComplete } from "../src/game/engine";
-import { solve } from "../src/game/solver";
+import { solvePath } from "../src/game/solver";
 
 const SAMPLES = 50;
 
@@ -77,6 +77,13 @@ for (const tier of TIERS) {
   const totalEmpty = tier.empty + tier.paid;
   const canSolve = filled <= 8;
 
+  // Build exclude set for paid tubes (they come after filled + free empty)
+  const paidStart = filled + tier.empty;
+  const excludeIndices = new Set<number>();
+  for (let i = paidStart; i < filled + totalEmpty; i++) {
+    excludeIndices.add(i);
+  }
+
   const pars: number[] = [];
 
   for (let i = 0; i < SAMPLES; i++) {
@@ -86,15 +93,16 @@ for (const tier of TIERS) {
       if (hasDuplicateTube(tubes)) continue;
 
       if (canSolve) {
-        const result = solve(tubes);
+        // Solve WITHOUT paid tubes — player must solve with free tubes only
+        const result = solvePath(tubes, excludeIndices);
         if (result === null) {
           // Too complex, use estimate
           pars.push(estimatePar(filled));
           break;
         }
         if (!result.solvable) continue;
-        if (result.par < 3) continue;
-        pars.push(result.par);
+        if (result.moves.length < 3) continue;
+        pars.push(result.moves.length);
         break;
       } else {
         pars.push(estimatePar(filled));
