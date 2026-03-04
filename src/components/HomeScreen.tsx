@@ -1,4 +1,4 @@
-import { memo, useMemo, useState } from "react";
+import { memo, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { IoStar, IoDownloadOutline, IoPlay, IoChevronDown, IoRefresh } from "react-icons/io5";
 import type { LevelResult } from "../game/types";
@@ -62,6 +62,9 @@ export function HomeScreen({
   const { canInstall, install } = useInstallPrompt();
   const [showPrevious, setShowPrevious] = useState(false);
   const [selectedLevel, setSelectedLevel] = useState<number | null>(null);
+  const [devLevelInput, setDevLevelInput] = useState(false);
+  const devInputRef = useRef<HTMLInputElement>(null);
+  const IS_DEV = import.meta.env.DEV;
 
   // The "current" level = first uncompleted level up to maxLevel
   const currentLevel = useMemo(() => {
@@ -127,9 +130,44 @@ export function HomeScreen({
           transition={{ duration: 0.3 }}
           key={heroLevel}
         >
-          <span style={styles.heroLabel}>
-            Level {heroLevel}
-          </span>
+          {IS_DEV && devLevelInput ? (
+            <span style={styles.heroLabel}>
+              Level{" "}
+              <input
+                ref={devInputRef}
+                type="number"
+                defaultValue={heroLevel}
+                min={1}
+                autoFocus
+                style={styles.devInput}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    const val = parseInt(devInputRef.current?.value ?? "", 10);
+                    if (val > 0) {
+                      setSelectedLevel(val);
+                    }
+                    setDevLevelInput(false);
+                  } else if (e.key === "Escape") {
+                    setDevLevelInput(false);
+                  }
+                }}
+                onBlur={() => {
+                  const val = parseInt(devInputRef.current?.value ?? "", 10);
+                  if (val > 0) {
+                    setSelectedLevel(val);
+                  }
+                  setDevLevelInput(false);
+                }}
+              />
+            </span>
+          ) : (
+            <span
+              style={styles.heroLabel}
+              onClick={IS_DEV ? () => setDevLevelInput(true) : undefined}
+            >
+              Level {heroLevel}
+            </span>
+          )}
 
           {heroResult && (
             <span style={styles.heroStars}>
@@ -310,6 +348,19 @@ const styles: Record<string, React.CSSProperties> = {
     gridTemplateColumns: "repeat(5, 1fr)",
     gap: 8,
     padding: "8px 0 16px",
+  },
+  devInput: {
+    width: 60,
+    fontSize: 28,
+    fontWeight: 700,
+    fontFamily: "inherit",
+    textAlign: "center" as const,
+    background: "rgba(255, 255, 255, 0.1)",
+    border: "1px solid rgba(255, 255, 255, 0.3)",
+    borderRadius: 8,
+    color: "#f8fafc",
+    outline: "none",
+    padding: "2px 4px",
   },
   installBtn: {
     display: "flex",
