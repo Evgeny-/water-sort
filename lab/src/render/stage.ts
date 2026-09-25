@@ -539,7 +539,9 @@ export class Stage {
       const flowed = amount * ease.inOut(pk);
       srcLayer.vol = Math.max(0, srcLayerVol0 - flowed);
       if (!valve) {
-        const phi = spillAngle(shape, v0 - flowed) + 0.05 + 0.04 * Math.sin(Math.PI * pk);
+        // the spill angle shoots up from ~98° to 115° for the last drops: holding it there
+        // keeps the bottle from diving nose-first at the end of the pour
+        const phi = spillAngle(shape, Math.max(v0 - flowed, 0.2)) + 0.05 + 0.04 * Math.sin(Math.PI * pk);
         src.rot = poseFor(phi, src.pos);
       } else if (handle) {
         handle.rotation.y = Math.min(1, pk * 4) * (Math.PI / 2) * (pk < 0.92 ? 1 : (1 - pk) / 0.08);
@@ -583,15 +585,20 @@ export class Stage {
     if (srcLayer.vol <= 0.001) src.layers.splice(src.layers.indexOf(srcLayer), 1);
     dst.kick((Math.random() - 0.5) * 2, 1.5);
 
-    // Phase C: return
-    const retPos = src.pos.clone();
+    // Phase C: return. The bottle turns upright around its middle while that middle
+    // glides home, the way a hand puts it back; turning around the base while the base
+    // led the way made the neck swing down first
     const retRot = src.rot;
+    const half = shape.yTop * 0.5;
+    const midFrom = new THREE.Vector3(src.pos.x - half * Math.sin(retRot), src.pos.y + half * Math.cos(retRot), src.pos.z);
+    const midTo = new THREE.Vector3(src.base.x, src.base.y + half, src.base.z);
+    const mid = new THREE.Vector3();
     src.lift = 0;
-    await this.tween(0.34, (k) => {
-      const e = ease.out(k);
-      src.pos.lerpVectors(retPos, src.base, e);
-      src.pos.y += Math.sin(Math.PI * k) * 0.18;
-      src.rot = retRot * (1 - ease.inOut(Math.min(1, k * 1.25)));
+    await this.tween(0.36, (k) => {
+      src.rot = retRot * (1 - ease.out(Math.min(1, k * 1.15)));
+      mid.lerpVectors(midFrom, midTo, ease.inOut(k));
+      mid.y += Math.sin(Math.PI * k) * 0.12;
+      src.pos.set(mid.x + half * Math.sin(src.rot), mid.y - half * Math.cos(src.rot), mid.z);
     });
     src.rot = 0;
     src.animated = false;
