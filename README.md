@@ -7,8 +7,8 @@ Free, no ads, right in the browser — on a phone or a desktop.
 
 ### [▶ Play at evgeny.io/games/water-sort](https://evgeny.io/games/water-sort/)
 
-<img src="docs/screenshots/pour.webp" alt="Bottles pouring into the big jar" width="250">
-<img src="docs/screenshots/home.webp" alt="Main menu with the difficulty picker" width="250">
+<img src="docs/screenshots/pour.webp" alt="Bottles pouring into the big jar" width="250">&nbsp;
+<img src="docs/screenshots/home.webp" alt="Main menu with the difficulty picker" width="250">&nbsp;
 <img src="docs/screenshots/board-everything.webp" alt="A very hard level with a jar, locks, valves and hidden layers" width="250">
 
 </div>
