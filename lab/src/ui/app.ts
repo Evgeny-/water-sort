@@ -515,8 +515,8 @@ class Session {
   /** the background solver's answer for a position, and the search still running */
   private analysis: { state: State; r: SolveResult } | null = null;
   private analyzing: { state: State; done: Promise<SolveResult | null> } | null = null;
-  /** position we already said can't be won */
-  private warnedAt: State | null = null;
+  /** the toast on screen answers Hint for a position that may have changed since */
+  private hintToast = false;
 
   constructor(
     private app: App,
@@ -625,7 +625,10 @@ class Session {
     if (!this.disposed && !this.won) this.idleTimer = window.setTimeout(() => this.nudge(), NUDGE_AFTER);
   }
 
-  /** After a long pause, light runs up the bottle to take next; in a dead end, Undo bounces instead. */
+  /**
+   * After a long pause, light runs up the bottle to take next. A lost position gets
+   * no nudge: while moves remain the game doesn't say it can't be won.
+   */
   private nudge() {
     if (this.disposed || this.won) return;
     const r = this.analysis?.state === this.state ? this.analysis.r : null;
@@ -634,7 +637,6 @@ class Session {
       return;
     }
     if (r.move) this.stage.glint(r.move.from);
-    else if (r.solvable === false && this.history.length) this.bounceUndo();
     this.idleTimer = window.setTimeout(() => this.nudge(), NUDGE_EVERY);
   }
 
@@ -647,15 +649,17 @@ class Session {
 
   /** Solve the current position in the background (a newer position cancels the search). */
   private analyze() {
-    // a "no solution" message is about the previous position
-    if (this.warnedAt && this.warnedAt !== this.state) this.hideToast();
+    if (this.hintToast) {
+      this.hintToast = false;
+      clearTimeout(this.toastTimer);
+      this.hud.querySelector(".toast")!.classList.remove("show");
+    }
     const state = this.state;
     const done = solveAsync(this.level, state);
     this.analyzing = { state, done };
     void done.then((r) => {
       if (!r || this.disposed || state !== this.state) return;
       this.analysis = { state, r };
-      this.warnIfLost();
     });
   }
 
@@ -666,16 +670,6 @@ class Session {
     if (this.analyzing?.state !== state) this.analyze();
     const r = await this.analyzing!.done;
     return state === this.state ? r : null;
-  }
-
-  /** Once the position can no longer be won, say so (once per position) and bounce Undo. */
-  private warnIfLost() {
-    const a = this.analysis;
-    if (!a || a.state !== this.state || a.r.solvable !== false || this.warnedAt === this.state) return;
-    if (this.won || this.overlay || this.pending > 0 || !this.history.length) return;
-    this.warnedAt = this.state;
-    this.toast("No solution from here — undo a few moves", 3200);
-    this.bounceUndo();
   }
 
   /** Rules cards shown one after another before the level starts. */
@@ -727,11 +721,6 @@ class Session {
       sfx.setMuted(!sfx.muted);
       snd.innerHTML = `${sfx.muted ? ICONS.mute : ICONS.sound}<span>${sfx.muted ? "Sound off" : "Sound on"}</span>`;
     });
-  }
-
-  private hideToast() {
-    clearTimeout(this.toastTimer);
-    this.hud.querySelector(".toast")!.classList.remove("show");
   }
 
   private toast(html: string, ms = 1900) {
@@ -851,7 +840,6 @@ class Session {
     this.pending--;
     this.updateHud();
     this.checkEnd();
-    this.warnIfLost();
   }
 
   private checkEnd() {
@@ -979,6 +967,7 @@ class Session {
     if (this.analysis?.state !== this.state) this.toast("Looking for a move…", 1600);
     const r = await this.currentAnalysis();
     if (!r || epoch !== this.epoch || this.disposed) return;
+    this.hintToast = true;
     if (!r.move) {
       this.toast(r.solvable === false ? "No solution from here — undo a few moves" : "Couldn't find a move in time", 2600);
       if (r.solvable === false) this.bounceUndo();
