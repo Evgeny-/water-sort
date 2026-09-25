@@ -1,0 +1,36 @@
+{
+  "name": "Water Sort Puzzle",
+  "short_name": "Water Sort",
+  "description": "A colorful water sorting puzzle game with 3D water",
+  "start_url": "/games/water-sort/",
+  "display": "standalone",
+  "background_color": "#060a18",
+  "theme_color": "#0c1430",
+  "lang": "en",
+  "scope": "/games/water-sort/",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "maskable-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
