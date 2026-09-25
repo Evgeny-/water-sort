@@ -55,6 +55,9 @@ function starsFor(moves: number, par: number) {
   return moves <= par ? 3 : moves <= Math.ceil(par * 1.3) ? 2 : 1;
 }
 const moveWord = (n: number) => (n === 1 ? "move" : "moves");
+/** without any action for this long, the bottle to take next lights up; then again every NUDGE_EVERY */
+const NUDGE_AFTER = 20_000;
+const NUDGE_EVERY = 10_000;
 const mechList = (l: LevelDef) => (l.mechanics && l.mechanics.length ? l.mechanics : ["classic"]);
 /** planning-effort difficulty (0..1); older levels fall back to the casual-bot measure */
 const effortOf = (l: LevelDef) => l.stats.effort ?? 1 - l.stats.casual;
@@ -507,6 +510,9 @@ class Session {
   private hud: HTMLElement;
   private toastTimer = 0;
   private overlay: HTMLElement | null = null;
+  private idleTimer = 0;
+  /** next move of a solution, cached for the position it was found for */
+  private best: { state: State; move?: Move; exact: boolean; left: number } | null = null;
 
   constructor(
     private app: App,
@@ -547,11 +553,13 @@ class Session {
     this.measureHud();
     this.stage.build(level, this.state);
     this.updateHud();
+    this.markActive();
   }
 
   dispose() {
     this.disposed = true;
     this.epoch++;
+    clearTimeout(this.idleTimer);
     this.hud.remove();
     this.overlay?.remove();
     this.stage.onTap = null;
@@ -567,6 +575,7 @@ class Session {
 
   private action(act: string) {
     sfx.unlock();
+    this.markActive();
     if (act === "menu") this.pause();
     else if (act === "undo") this.undo();
     else if (act === "restart") this.restart();
@@ -600,6 +609,45 @@ class Session {
   private closeOverlay() {
     this.overlay?.remove();
     this.overlay = null;
+    this.markActive();
+  }
+
+  /** Any action restarts the wait before the idle nudge and stops one in progress. */
+  private markActive() {
+    clearTimeout(this.idleTimer);
+    this.stage.stopGlints();
+    this.hud.querySelector('[data-act="undo"]')!.classList.remove("nudge");
+    if (!this.disposed && !this.won) this.idleTimer = window.setTimeout(() => this.nudge(), NUDGE_AFTER);
+  }
+
+  /** After a long pause, light runs up the bottle to take next; in a dead end, Undo bounces instead. */
+  private nudge() {
+    if (this.disposed || this.won) return;
+    if (this.overlay || this.pending > 0 || this.stage.anyBusy()) {
+      this.idleTimer = window.setTimeout(() => this.nudge(), 3000);
+      return;
+    }
+    const { move, exact } = this.bestMove();
+    if (move) this.stage.glint(move.from);
+    else if (exact && this.history.length) {
+      const undo = this.hud.querySelector<HTMLElement>('[data-act="undo"]')!;
+      undo.classList.remove("nudge");
+      void undo.offsetWidth;
+      undo.classList.add("nudge");
+    }
+    this.idleTimer = window.setTimeout(() => this.nudge(), NUDGE_EVERY);
+  }
+
+  /** Next move of a solution from the current position (solved once per position). */
+  private bestMove() {
+    if (this.best?.state !== this.state) {
+      let move: Move | undefined;
+      const bfs = solveBfs(this.level, this.state, 60_000);
+      if (bfs.solvable && bfs.path?.length) move = bfs.path[0];
+      else if (!bfs.exact) move = solveBeam(this.level, this.state, 700)?.[0];
+      this.best = { state: this.state, move, exact: bfs.exact, left: bfs.path?.length ?? 0 };
+    }
+    return this.best;
   }
 
   /** Rules cards shown one after another before the level starts. */
@@ -676,6 +724,7 @@ class Session {
   private onTap(i: number) {
     sfx.unlock();
     if (this.disposed || this.won || this.overlay) return;
+    this.markActive();
     const st = this.state;
     const n = st.vessels.length;
     const mode = this.level.mode;
@@ -804,6 +853,7 @@ class Session {
   }
 
   private async victory() {
+    clearTimeout(this.idleTimer);
     const epoch = this.epoch;
     this.updateHud();
     await this.stage.celebrateWin();
@@ -879,6 +929,7 @@ class Session {
     this.stage.build(this.level, this.state);
     if (!silent) sfx.undo();
     this.updateHud();
+    this.markActive();
   }
 
   private hint() {
@@ -891,18 +942,14 @@ class Session {
     const epoch = this.epoch;
     setTimeout(() => {
       if (epoch !== this.epoch) return;
-      let move: Move | undefined;
-      const bfs = solveBfs(this.level, this.state, 60_000);
-      if (bfs.solvable && bfs.path?.length) move = bfs.path[0];
-      else if (!bfs.exact) move = solveBeam(this.level, this.state, 700)?.[0];
+      const { move, exact, left } = this.bestMove();
       if (!move) {
-        this.toast(bfs.exact ? "No solution from here — undo a few moves" : "Couldn't find a move in time", 2600);
+        this.toast(exact ? "No solution from here — undo a few moves" : "Couldn't find a move in time", 2600);
         return;
       }
       if (this.selected !== move.from) this.select(move.from);
       this.stage.flashHint(move.from, move.to);
-      const left = bfs.path?.length ?? 0;
-      this.toast(bfs.exact ? `${left} ${moveWord(left)} to go` : "Try this", 2200);
+      this.toast(exact ? `${left} ${moveWord(left)} to go` : "Try this", 2200);
     }, 40);
   }
 

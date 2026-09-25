@@ -126,6 +126,8 @@ export class VesselView {
   private readonly sunPhase = Math.random() * Math.PI * 2;
   /** progress of a light sweep over the glass, idle below 0 */
   private glintT = -1;
+  private glintRuns = 0;
+  private glintWait = 0;
   private coaster: THREE.Mesh | null = null;
   private lastKey = "";
 
@@ -234,9 +236,16 @@ export class VesselView {
     this.liquidMat.uniforms.uSun!.value = s;
   }
 
-  /** Start a soft band of light sweeping up the glass. */
-  glint() {
-    if (this.glintT < 0) this.glintT = 0;
+  /** A soft band of light sweeps up the glass `times` times in a row. */
+  glint(times = 1) {
+    this.glintRuns = times;
+    if (this.glintT < 0 && this.glintWait <= 0) this.glintT = 0;
+  }
+
+  stopGlint() {
+    this.glintT = -1;
+    this.glintRuns = 0;
+    this.glintWait = 0;
   }
 
   setOrderLook(color: Color) {
@@ -516,13 +525,26 @@ export class VesselView {
       Math.abs(this.liftV) + Math.abs(this.lift - this.liftTarget) + Math.abs(this.shakeX) + Math.abs(this.shakeV) +
       Math.abs(this.hop) + Math.abs(this.hopV) + Math.abs(this.wx) + Math.abs(this.wz) + Math.abs(this.wvx) + Math.abs(this.wvz) +
       Math.abs(this.glow - this.glowTarget) + Math.abs(this.dim - this.dimTarget) + this.corkDrop + Math.abs(this.corkV) + this.agit;
-    return this.animated || this.busy || e > 0.004 || this.layers.some((l) => l.hidden > 0 && l.hidden < 1);
+    return (
+      this.animated ||
+      this.busy ||
+      e > 0.004 ||
+      this.glintT >= 0 ||
+      this.glintWait > 0 ||
+      this.layers.some((l) => l.hidden > 0 && l.hidden < 1)
+    );
   }
 
   update(dt: number, time: number) {
-    if (this.glintT >= 0) {
+    if (this.glintWait > 0) {
+      this.glintWait -= dt;
+      if (this.glintWait <= 0) this.glintT = 0;
+    } else if (this.glintT >= 0) {
       this.glintT += dt / 0.9;
-      if (this.glintT >= 1) this.glintT = -1;
+      if (this.glintT >= 1) {
+        this.glintT = -1;
+        if (--this.glintRuns > 0) this.glintWait = 0.3;
+      }
     }
     this.glassMat.uniforms.uGlint!.value = this.glintT;
     if (!this.animated) {
