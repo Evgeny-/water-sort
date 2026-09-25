@@ -59,6 +59,8 @@ const moveWord = (n: number) => (n === 1 ? "move" : "moves");
 /** without any action for this long, the bottle to take next lights up; then again every NUDGE_EVERY */
 const NUDGE_AFTER = 20_000;
 const NUDGE_EVERY = 10_000;
+/** a lost position from which no more than this many positions can be reached counts as out of moves */
+const LOOP_LIMIT = 24;
 const mechList = (l: LevelDef) => (l.mechanics && l.mechanics.length ? l.mechanics : ["classic"]);
 /** planning-effort difficulty (0..1); older levels fall back to the casual-bot measure */
 const effortOf = (l: LevelDef) => l.stats.effort ?? 1 - l.stats.casual;
@@ -517,6 +519,8 @@ class Session {
   private analyzing: { state: State; done: Promise<SolveResult | null> } | null = null;
   /** the toast on screen answers Hint for a position that may have changed since */
   private hintToast = false;
+  /** position we already declared stuck in a loop */
+  private loopShownAt: State | null = null;
 
   constructor(
     private app: App,
@@ -660,7 +664,21 @@ class Session {
     void done.then((r) => {
       if (!r || this.disposed || state !== this.state) return;
       this.analysis = { state, r };
+      this.checkLoop();
     });
+  }
+
+  /**
+   * Moves that only go round a handful of positions, none of them a win, aren't real
+   * moves: that's the end, just like having none at all.
+   */
+  private checkLoop() {
+    const a = this.analysis;
+    if (!a || a.state !== this.state || this.loopShownAt === this.state) return;
+    if (this.won || this.overlay || this.pending > 0 || this.stage.anyBusy()) return;
+    if (a.r.solvable !== false || a.r.reach === null || a.r.reach > LOOP_LIMIT) return;
+    this.loopShownAt = this.state;
+    this.stuck(true);
   }
 
   /** The solver's answer for the current position, waiting for the search if it's still running. */
@@ -840,6 +858,7 @@ class Session {
     this.pending--;
     this.updateHud();
     this.checkEnd();
+    this.checkLoop();
   }
 
   private checkEnd() {
@@ -852,12 +871,13 @@ class Session {
     if (validMoves(this.state, this.level.mode).length === 0) this.stuck();
   }
 
-  private stuck() {
+  /** Out of moves: none at all, or (`loop`) only ones that go back and forth. */
+  private stuck(loop = false) {
     const o = this.openOverlay(
       `<div class="card stuck-card">
         <div class="rules-icon sad">${ICONS.classic}</div>
-        <h2>No moves left</h2>
-        <p class="meta">Undo a couple of moves or restart the level.</p>
+        <h2>${loop ? "No way out" : "No moves left"}</h2>
+        <p class="meta">${loop ? "The moves left only go back and forth. Undo a few moves or restart the level." : "Undo a couple of moves or restart the level."}</p>
         <div class="row">
           <button type="button" class="gbtn blue" data-go="undo">${ICONS.undo}<span>Undo</span></button>
           <button type="button" class="gbtn orange" data-go="restart">${ICONS.restart}<span>Restart</span></button>
