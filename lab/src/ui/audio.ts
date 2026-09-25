@@ -14,11 +14,12 @@ class Sfx {
   private ctx: AudioContext | null = null;
   private out: GainNode | null = null;
   private noiseBuf: AudioBuffer | null = null;
-  muted = false;
+  /** sound starts off; the speaker button turns it on and the choice is remembered */
+  muted = true;
 
   constructor() {
     try {
-      this.muted = localStorage.getItem("wsl-muted") === "1";
+      this.muted = localStorage.getItem("wsl-muted") !== "0";
     } catch {
       /* storage unavailable */
     }
