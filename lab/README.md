@@ -1,8 +1,9 @@
 # Water Sort Lab
 
-A standalone prototype of the next version of the game, kept apart from the
-main app in `../src`: 3D water rendered with Three.js, new mechanics and
-difficulty measured by simulation.
+The current version of the game, live at
+[evgeny.io/games/water-sort](https://evgeny.io/games/water-sort/): 3D water
+rendered with Three.js, new mechanics and difficulty measured by simulation.
+It replaced the React version in `../src`.
 
 ```bash
 npm install
