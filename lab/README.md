@@ -11,8 +11,8 @@ npm run dev        # http://localhost:5180
 
 ## What's inside
 
-- **Difficulty tracks.** The player picks Лёгкий / Средний / Сложный / Очень
-  сложный in the menu; each is a track of 25 levels with its own progress.
+- **Difficulty tracks.** The player picks Easy / Medium / Hard / Very hard in
+  the menu; each is a track of 25 levels with its own progress.
   Difficulty rises gently inside a track and every 5th level is a challenge.
 - **Mechanics.** Jar, orders, locks, valve, mini flask and hidden layers, freely
   combined. Every track starts with a mechanic; hidden layers act as a modifier

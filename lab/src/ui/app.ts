@@ -54,21 +54,15 @@ const ribbon = (tier: number, cls = "") => {
 function starsFor(moves: number, par: number) {
   return moves <= par ? 3 : moves <= Math.ceil(par * 1.3) ? 2 : 1;
 }
-function plural(n: number, one: string, few: string, many: string) {
-  const m10 = n % 10;
-  const m100 = n % 100;
-  if (m10 === 1 && m100 !== 11) return one;
-  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
-  return many;
-}
+const moveWord = (n: number) => (n === 1 ? "move" : "moves");
 const mechList = (l: LevelDef) => (l.mechanics && l.mechanics.length ? l.mechanics : ["classic"]);
 /** planning-effort difficulty (0..1); older levels fall back to the casual-bot measure */
 const effortOf = (l: LevelDef) => l.stats.effort ?? 1 - l.stats.casual;
 /** chips for a level's mechanics; `fresh` ones are marked as new */
 const mechChips = (l: LevelDef, fresh: string[] = []) =>
-  (l.boss ? `<span class="chip boss"><i>${ICONS.crown}</i>Испытание</span>` : "") +
+  (l.boss ? `<span class="chip boss"><i>${ICONS.crown}</i>Challenge</span>` : "") +
   mechList(l)
-    .map((m) => `<span class="chip" style="--h:${MECHANICS[m]!.hue}"><i>${ICONS[m]}</i>${MECHANICS[m]!.name}${fresh.includes(m) ? "<b class=\"new\">новое</b>" : ""}</span>`)
+    .map((m) => `<span class="chip" style="--h:${MECHANICS[m]!.hue}"><i>${ICONS[m]}</i>${MECHANICS[m]!.name}${fresh.includes(m) ? "<b class=\"new\">new</b>" : ""}</span>`)
     .join("");
 
 interface Progress {
@@ -157,19 +151,19 @@ export class App {
         <section class="mode-card">
           <div class="dpick">
             <button type="button" class="dp-current" aria-expanded="false"></button>
-            <div class="tier-tabs" role="radiogroup" aria-label="Сложность" hidden>${tabs}</div>
+            <div class="tier-tabs" role="radiogroup" aria-label="Difficulty" hidden>${tabs}</div>
           </div>
           <div class="mc-next" aria-live="polite"></div>
-          <button type="button" class="gbtn big tier-play" data-go="play">${ICONS.play}<span>Играть</span></button>
-          <button type="button" class="gbtn glass" data-go="map">${ICONS.map}<span>Карта уровней</span></button>
+          <button type="button" class="gbtn big tier-play" data-go="play">${ICONS.play}<span>Play</span></button>
+          <button type="button" class="gbtn glass" data-go="map">${ICONS.map}<span>Level map</span></button>
         </section>
-        <button type="button" class="gbtn blue wide" data-go="free"><span class="wide-icon">${ICONS.mix}</span><b>Свободная игра</b></button>
+        <button type="button" class="gbtn blue wide" data-go="free"><span class="wide-icon">${ICONS.mix}</span><b>Free play</b></button>
         <div class="settings">
-          <div class="seg" role="group" aria-label="Графика">
-            <button type="button" data-q="high" aria-pressed="${this.quality === "high"}">Графика: высокая</button>
-            <button type="button" data-q="low" aria-pressed="${this.quality === "low"}">экономная</button>
+          <div class="seg" role="group" aria-label="Graphics">
+            <button type="button" data-q="high" aria-pressed="${this.quality === "high"}">Graphics: high</button>
+            <button type="button" data-q="low" aria-pressed="${this.quality === "low"}">low</button>
           </div>
-          <button type="button" class="gbtn glass round sm" data-go="sound" aria-label="Звук вкл/выкл">${sfx.muted ? ICONS.mute : ICONS.sound}</button>
+          <button type="button" class="gbtn glass round sm" data-go="sound" aria-label="Sound on/off">${sfx.muted ? ICONS.mute : ICONS.sound}</button>
         </div>
       </div>
     </main>`);
@@ -189,7 +183,7 @@ export class App {
       card.style.setProperty("--tc", t.color);
       current.style.setProperty("--tc", t.color);
       current.style.setProperty("--tink", t.ink);
-      current.setAttribute("aria-label", `Сложность: ${t.name}. Изменить`);
+      current.setAttribute("aria-label", `Difficulty: ${t.name}. Change`);
       current.innerHTML = `<span class="dp-pill">${pips(this.tier)}<b>${t.name}</b></span><span class="dp-count">${s.done}/${s.total}</span><i class="dp-chev">${ICONS.chevron}</i>`;
       options.querySelectorAll<HTMLButtonElement>(".tab").forEach((b) => {
         const on = Number(b.dataset.track) === this.tier;
@@ -199,7 +193,7 @@ export class App {
       const idx = this.nextIndex(this.tier);
       const lvl = TRACKS[this.tier]![idx]!;
       el.querySelector(".mc-next")!.innerHTML = `
-        <div class="mc-level">${s.done === s.total ? "Всё пройдено!" : `Уровень ${idx + 1}`}</div>
+        <div class="mc-level">${s.done === s.total ? "All done!" : `Level ${idx + 1}`}</div>
         <div class="mc-meta">${mechChips(lvl, this.freshMechs(lvl))}</div>`;
     };
     render();
@@ -268,16 +262,16 @@ export class App {
     ).join("");
     const el = h(`<main class="screen map">
       <header class="bar">
-        <button type="button" class="gbtn glass round" data-go="home" aria-label="Назад">${ICONS.back}</button>
+        <button type="button" class="gbtn glass round" data-go="home" aria-label="Back">${ICONS.back}</button>
         <h2 style="color:${t.color}">${t.name}</h2>
         <span class="bar-stars">${ICONS.star}<b>${stars}</b></span>
       </header>
       <div class="map-scroll">
-        <div class="tier-tabs" role="radiogroup" aria-label="Сложность">${tabs}</div>
+        <div class="tier-tabs" role="radiogroup" aria-label="Difficulty">${tabs}</div>
         <section class="curve-card">
-          <div class="curve-head"><b>Кривая сложности</b><span>сколько перебора нужно, чтобы найти решение</span></div>
+          <div class="curve-head"><b>Difficulty curve</b><span>how much searching it takes to find a solution</span></div>
           ${this.curveSvg(track, t.color)}
-          <div class="legend"><span><i style="background:${t.color}"></i>уровень</span><span><i class="boss" style="background:${t.color}"></i>испытание</span><span><i class="line"></i>цель</span></div>
+          <div class="legend"><span><i style="background:${t.color}"></i>level</span><span><i class="boss" style="background:${t.color}"></i>challenge</span><span><i class="line"></i>target</span></div>
         </section>
         <div class="path"></div>
       </div>
@@ -318,7 +312,7 @@ export class App {
           ? `<span class="node-mech" style="--h:${MECHANICS[mech.length > 1 ? "mix" : mech[0]!]!.hue}">${ICONS[mech.length > 1 ? "mix" : mech[0]!]}</span>`
           : "";
       const cls = [st ? "done" : "", i === next ? "current" : "", i > next ? "ahead" : "", lvl.boss ? "boss" : ""].join(" ");
-      const node = h(`<button type="button" class="node ${cls}" style="left:${p.x}px;top:${p.y}px;--tc:${t.color}" aria-label="Уровень ${i + 1}${lvl.boss ? ", испытание" : ""}: ${mech.map((m) => MECHANICS[m]!.name).join(", ")}">
+      const node = h(`<button type="button" class="node ${cls}" style="left:${p.x}px;top:${p.y}px;--tc:${t.color}" aria-label="Level ${i + 1}${lvl.boss ? ", challenge" : ""}: ${mech.map((m) => MECHANICS[m]!.name).join(", ")}">
         ${lvl.boss ? `<span class="node-crown">${ICONS.crown}</span>` : ""}
         <b>${i + 1}</b>
         ${st ? `<span class="node-stars">${[0, 1, 2].map((k) => `<i class="${k < st ? "on" : ""}">${ICONS.star}</i>`).join("")}</span>` : ""}
@@ -328,7 +322,7 @@ export class App {
       path.append(node);
       if (fresh) {
         const side = p.x > W / 2 ? "left" : "right";
-        path.append(h(`<span class="node-label ${side}" style="left:${p.x}px;top:${p.y}px">Новое: ${MECHANICS[fresh]!.name}</span>`));
+        path.append(h(`<span class="node-label ${side}" style="left:${p.x}px;top:${p.y}px">New: ${MECHANICS[fresh]!.name}</span>`));
       }
     });
     el.querySelector('[data-go="home"]')!.addEventListener("click", () => this.home());
@@ -364,14 +358,14 @@ export class App {
     const dots = track
       .map(
         (l, i) =>
-          `<circle class="${l.boss ? "boss" : ""}" cx="${x(i).toFixed(1)}" cy="${y(effortOf(l)).toFixed(1)}" r="${l.boss ? 5.2 : 3.6}" fill="${color}"><title>Уровень ${i + 1}${l.boss ? " (испытание)" : ""}: ${pct(effortOf(l))}</title></circle>`,
+          `<circle class="${l.boss ? "boss" : ""}" cx="${x(i).toFixed(1)}" cy="${y(effortOf(l)).toFixed(1)}" r="${l.boss ? 5.2 : 3.6}" fill="${color}"><title>Level ${i + 1}${l.boss ? " (challenge)" : ""}: ${pct(effortOf(l))}</title></circle>`,
       )
       .join("");
     const ticks = [1, 5, 10, 15, 20, 25]
       .filter((i) => i <= n)
       .map((i) => `<text class="tx" x="${x(i - 1)}" y="${H - 5}">${i}</text>`)
       .join("");
-    return `<svg class="curve" viewBox="0 0 ${W} ${H}" role="img" aria-label="Кривая сложности трассы: цель и замер по уровням">
+    return `<svg class="curve" viewBox="0 0 ${W} ${H}" role="img" aria-label="Difficulty curve of the track: target and measured value per level">
       <g class="grid">${grid}</g>${ticks}<path class="target" d="${target}"/>${dots}
     </svg>`;
   }
@@ -382,15 +376,15 @@ export class App {
     const pick = this.freePick;
     const el = h(`<main class="screen free">
       <header class="bar">
-        <button type="button" class="gbtn glass round" data-go="home" aria-label="Назад">${ICONS.back}</button>
-        <h2>Свободная игра</h2>
+        <button type="button" class="gbtn glass round" data-go="home" aria-label="Back">${ICONS.back}</button>
+        <h2>Free play</h2>
         <span></span>
       </header>
       <div class="free-scroll">
-        <p class="free-lede">Выберите механику и сложность. Уровни заранее подобраны симуляцией под каждый уровень сложности.</p>
+        <p class="free-lede">Pick a mechanic and a difficulty. Every level was measured by simulation.</p>
         <div class="mech-grid"></div>
-        <div class="tier-pick" role="radiogroup" aria-label="Сложность"></div>
-        <button type="button" class="gbtn green big" data-go="play">${ICONS.play}<span>Играть</span></button>
+        <div class="tier-pick" role="radiogroup" aria-label="Difficulty"></div>
+        <button type="button" class="gbtn green big" data-go="play">${ICONS.play}<span>Play</span></button>
       </div>
     </main>`);
     const grid = el.querySelector(".mech-grid")!;
@@ -454,7 +448,7 @@ export class App {
       try {
         this.stage = new Stage(this.quality);
       } catch {
-        el.append(h(`<p class="webgl-error">Не удалось запустить WebGL в этом браузере.</p>`));
+        el.append(h(`<p class="webgl-error">Couldn't start WebGL in this browser.</p>`));
         return;
       }
     }
@@ -523,26 +517,26 @@ class Session {
   ) {
     this.state = initialState(level);
     const tier = level.tier ?? 0;
-    const title = ctx.kind === "track" ? `Уровень ${ctx.index + 1}` : MECHANICS[ctx.bucket]!.name;
+    const title = ctx.kind === "track" ? `Level ${ctx.index + 1}` : MECHANICS[ctx.bucket]!.name;
     const chips =
-      (level.boss ? `<span class="chip boss"><i>${ICONS.crown}</i>Испытание</span>` : "") +
+      (level.boss ? `<span class="chip boss"><i>${ICONS.crown}</i>Challenge</span>` : "") +
       mechList(level)
         .map((m) => `<button type="button" class="chip" data-mech="${m}" style="--h:${MECHANICS[m]!.hue}"><i>${ICONS[m]}</i>${MECHANICS[m]!.name}</button>`)
         .join("");
     this.hud = h(`<div class="hud">
       <header class="hud-top">
-        <button type="button" class="gbtn glass round" data-act="menu" aria-label="Пауза">${ICONS.menu}</button>
+        <button type="button" class="gbtn glass round" data-act="menu" aria-label="Pause">${ICONS.menu}</button>
         <div class="plate"><strong>${title}</strong>${ribbon(tier, "sm")}</div>
         <div class="moves" aria-live="polite">
-          <b class="mv">0</b><span>пар ${level.par}</span>
-          <span class="meter" aria-label="Звёзды при текущем числе ходов">${[0, 1, 2].map(() => `<i>${ICONS.star}</i>`).join("")}</span>
+          <b class="mv">0</b><span>par ${level.par}</span>
+          <span class="meter" aria-label="Stars at the current move count">${[0, 1, 2].map(() => `<i>${ICONS.star}</i>`).join("")}</span>
         </div>
       </header>
       <div class="hud-sub"><div class="chips">${chips}</div><div class="queue" hidden></div></div>
       <footer class="hud-bottom">
-        <button type="button" class="gbtn blue act" data-act="undo">${ICONS.undo}<span>Отмена</span></button>
-        <button type="button" class="gbtn orange act" data-act="restart">${ICONS.restart}<span>Заново</span></button>
-        <button type="button" class="gbtn purple act" data-act="hint">${ICONS.hint}<span>Подсказка</span></button>
+        <button type="button" class="gbtn blue act" data-act="undo">${ICONS.undo}<span>Undo</span></button>
+        <button type="button" class="gbtn orange act" data-act="restart">${ICONS.restart}<span>Restart</span></button>
+        <button type="button" class="gbtn purple act" data-act="hint">${ICONS.hint}<span>Hint</span></button>
       </footer>
       <div class="toast" role="status" aria-live="polite"></div>
     </div>`);
@@ -590,8 +584,8 @@ class Session {
       const upcoming = this.level.queue.slice(this.state.qi, this.state.qi + 5);
       q.hidden = false;
       q.innerHTML = upcoming.length
-        ? `<span>Дальше</span>${upcoming.map((o) => `<i class="q" style="--c:${css(o.color)}">${o.cap}</i>`).join("")}${this.level.queue.length - this.state.qi > 5 ? "<span>…</span>" : ""}`
-        : `<span>Последние заказы</span>`;
+        ? `<span>Next</span>${upcoming.map((o) => `<i class="q" style="--c:${css(o.color)}">${o.cap}</i>`).join("")}${this.level.queue.length - this.state.qi > 5 ? "<span>…</span>" : ""}`
+        : `<span>Last orders</span>`;
     }
   }
 
@@ -620,11 +614,11 @@ class Session {
     const basics = isNew && mech === "classic";
     const o = this.openOverlay(
       `<div class="card rules-card" style="--h:${m.hue}">
-        ${isNew ? `<div class="card-ribbon"><span>${basics ? "Добро пожаловать" : "Новая механика"}</span></div>` : ""}
+        ${isNew ? `<div class="card-ribbon"><span>${basics ? "Welcome" : "New mechanic"}</span></div>` : ""}
         <div class="rules-icon">${ICONS[mech]}</div>
-        <h2>${basics ? "Как играть" : m.name}</h2>
+        <h2>${basics ? "How to play" : m.name}</h2>
         <ul class="rules">${m.rules.map((r) => `<li>${r}</li>`).join("")}</ul>
-        <button type="button" class="gbtn green big" data-close><span>${more ? "Дальше" : isNew ? "Понятно!" : "Продолжить"}</span>${more ? ICONS.next : ""}</button>
+        <button type="button" class="gbtn green big" data-close><span>${more ? "Next" : isNew ? "Got it!" : "Continue"}</span>${more ? ICONS.next : ""}</button>
       </div>`,
       "dim",
     );
@@ -638,14 +632,14 @@ class Session {
     const l = this.level;
     const o = this.openOverlay(
       `<div class="card pause-card">
-        <h2>Пауза</h2>
-        <div class="pause-meta">${ribbon(l.tier ?? 0)}<p class="meta">Сложность ${pct(effortOf(l))} · пар ${l.par}${l.stats.exact ? " (доказанный оптимум)" : ""}</p></div>
-        <button type="button" class="gbtn green big" data-close>${ICONS.play}<span>Продолжить</span></button>
+        <h2>Paused</h2>
+        <div class="pause-meta">${ribbon(l.tier ?? 0)}<p class="meta">Difficulty ${pct(effortOf(l))} · par ${l.par}${l.stats.exact ? " (proven optimal)" : ""}</p></div>
+        <button type="button" class="gbtn green big" data-close>${ICONS.play}<span>Resume</span></button>
         <div class="row">
-          <button type="button" class="gbtn glass" data-go="leave">${ICONS.map}<span>${this.ctx.kind === "track" ? "Карта" : "Выбор"}</span></button>
-          <button type="button" class="gbtn glass" data-go="home">${ICONS.home}<span>Меню</span></button>
+          <button type="button" class="gbtn glass" data-go="leave">${ICONS.map}<span>${this.ctx.kind === "track" ? "Map" : "Change"}</span></button>
+          <button type="button" class="gbtn glass" data-go="home">${ICONS.home}<span>Menu</span></button>
         </div>
-        <button type="button" class="gbtn glass" data-go="sound">${sfx.muted ? ICONS.mute : ICONS.sound}<span>${sfx.muted ? "Звук выключен" : "Звук включён"}</span></button>
+        <button type="button" class="gbtn glass" data-go="sound">${sfx.muted ? ICONS.mute : ICONS.sound}<span>${sfx.muted ? "Sound off" : "Sound on"}</span></button>
       </div>`,
       "dim",
     );
@@ -655,7 +649,7 @@ class Session {
     const snd = o.querySelector<HTMLButtonElement>('[data-go="sound"]')!;
     snd.addEventListener("click", () => {
       sfx.setMuted(!sfx.muted);
-      snd.innerHTML = `${sfx.muted ? ICONS.mute : ICONS.sound}<span>${sfx.muted ? "Звук выключен" : "Звук включён"}</span>`;
+      snd.innerHTML = `${sfx.muted ? ICONS.mute : ICONS.sound}<span>${sfx.muted ? "Sound off" : "Sound on"}</span>`;
     });
   }
 
@@ -687,7 +681,7 @@ class Session {
     const mode = this.level.mode;
     if (this.selected === null) {
       if (i >= n) {
-        this.toast("Сначала выберите бутылку, из которой наливать");
+        this.toast("First pick a bottle to pour from");
         return;
       }
       if (this.stage.isBusy(i)) return;
@@ -720,11 +714,11 @@ class Session {
   private explainSource(i: number, block: string) {
     const v = this.state.vessels[i]!;
     if (block === "locked") {
-      this.toast(`Заперто. Откроется, когда соберёте ${dot(v.lock!)}`);
+      this.toast(`Locked. Opens when you complete ${dot(v.lock!)}`);
       this.stage.shake(i);
       sfx.invalid();
     } else if (block === "jar") {
-      this.toast("Из бака вылить нельзя — только наливать");
+      this.toast("You can't pour out of a jar — only into it");
       this.stage.shake(i);
       sfx.invalid();
     } else if (block === "complete") {
@@ -739,12 +733,12 @@ class Session {
     if (!run) return;
     if (to >= n) {
       const slot = st.slots[to - n];
-      if (slot && slot.color !== run.color) this.toast(`Этот стакан ждёт ${dot(slot.color)}`);
+      if (slot && slot.color !== run.color) this.toast(`This cup wants ${dot(slot.color)}`);
       return;
     }
     const d = st.vessels[to]!;
-    if (d.lock !== null) this.toast(`Заперто. Откроется, когда соберёте ${dot(d.lock)}`);
-    else if (d.kind === "jar" && d.accept !== null && d.accept !== run.color) this.toast(`Бак принимает только ${dot(d.accept)}`);
+    if (d.lock !== null) this.toast(`Locked. Opens when you complete ${dot(d.lock)}`);
+    else if (d.kind === "jar" && d.accept !== null && d.accept !== run.color) this.toast(`This jar only takes ${dot(d.accept)}`);
   }
 
   private async pour(from: number, to: number) {
@@ -790,11 +784,11 @@ class Session {
     const o = this.openOverlay(
       `<div class="card stuck-card">
         <div class="rules-icon sad">${ICONS.classic}</div>
-        <h2>Ходов нет</h2>
-        <p class="meta">Отмените пару ходов или начните уровень заново.</p>
+        <h2>No moves left</h2>
+        <p class="meta">Undo a couple of moves or restart the level.</p>
         <div class="row">
-          <button type="button" class="gbtn blue" data-go="undo">${ICONS.undo}<span>Отменить</span></button>
-          <button type="button" class="gbtn orange" data-go="restart">${ICONS.restart}<span>Заново</span></button>
+          <button type="button" class="gbtn blue" data-go="undo">${ICONS.undo}<span>Undo</span></button>
+          <button type="button" class="gbtn orange" data-go="restart">${ICONS.restart}<span>Restart</span></button>
         </div>
       </div>`,
       "dim",
@@ -821,31 +815,31 @@ class Session {
     const next = this.app.nextOf(this.ctx);
     const harder = next ? null : this.app.harderOf(this.ctx);
     const tier = TIERS[l.tier ?? 0]!;
-    const head = this.ctx.kind === "track" ? `Уровень ${this.ctx.index + 1}` : "Уровень";
-    const praise = stars === 3 ? (this.moves < l.par ? "Лучше пара!" : "Идеально!") : stars === 2 ? "Отлично!" : "Пройдено!";
+    const head = this.ctx.kind === "track" ? `Level ${this.ctx.index + 1}` : "Level";
+    const praise = stars === 3 ? (this.moves < l.par ? "Better than par!" : "Perfect!") : stars === 2 ? "Great!" : "Complete!";
     const o = this.openOverlay(
       `<div class="rays" aria-hidden="true"></div>
       <div class="card win-card">
-        <div class="card-ribbon big"><span>${head} пройден</span></div>
+        <div class="card-ribbon big"><span>${head} complete</span></div>
         <div class="big-stars">${[0, 1, 2].map((i) => `<i class="${i < stars ? "on" : ""}" style="--d:${0.25 + i * 0.22}s">${ICONS.star}</i>`).join("")}</div>
         <div class="praise">${praise}</div>
         <div class="win-stats">
-          <div><b>${this.moves}</b><span>${plural(this.moves, "ход", "хода", "ходов")}</span></div>
-          <div><b>${l.par}</b><span>пар</span></div>
+          <div><b>${this.moves}</b><span>${moveWord(this.moves)}</span></div>
+          <div><b>${l.par}</b><span>par</span></div>
           <div><b style="color:${tier.color}">${pct(effortOf(l))}</b><span>${tier.name.toLowerCase()}</span></div>
         </div>
         ${
           next
-            ? `<button type="button" class="gbtn green big" data-go="next"><span>${this.ctx.kind === "track" ? "Следующий уровень" : "Ещё уровень"}</span>${ICONS.next}</button>`
-            : `<p class="meta center">${this.app.trackDone(this.ctx) ? `Все уровни сложности «${tier.name}» пройдены!` : `Это последний уровень сложности «${tier.name}».`}</p>${
+            ? `<button type="button" class="gbtn green big" data-go="next"><span>${this.ctx.kind === "track" ? "Next level" : "Another level"}</span>${ICONS.next}</button>`
+            : `<p class="meta center">${this.app.trackDone(this.ctx) ? `You've completed every ${tier.name} level!` : `That was the last ${tier.name} level.`}</p>${
                 harder
-                  ? `<button type="button" class="gbtn green big fit" data-go="harder"><span>Играть «${TIERS[harder.tier]!.short}»</span>${ICONS.next}</button>`
+                  ? `<button type="button" class="gbtn green big fit" data-go="harder"><span>Play ${TIERS[harder.tier]!.short}</span>${ICONS.next}</button>`
                   : ""
               }`
         }
         <div class="row">
-          <button type="button" class="gbtn glass" data-go="again">${ICONS.restart}<span>Заново</span></button>
-          <button type="button" class="gbtn glass" data-go="leave">${ICONS.map}<span>${this.ctx.kind === "track" ? "Карта" : "Выбор"}</span></button>
+          <button type="button" class="gbtn glass" data-go="again">${ICONS.restart}<span>Restart</span></button>
+          <button type="button" class="gbtn glass" data-go="leave">${ICONS.map}<span>${this.ctx.kind === "track" ? "Map" : "Change"}</span></button>
         </div>
       </div>`,
       "win",
@@ -863,7 +857,7 @@ class Session {
   private undo() {
     if (!this.history.length || this.won) return;
     if (this.pending > 0 || this.stage.anyBusy()) {
-      this.toast("Секунду — вода ещё льётся");
+      this.toast("One moment — still pouring");
       return;
     }
     this.state = this.history.pop()!;
@@ -890,10 +884,10 @@ class Session {
   private hint() {
     if (this.won) return;
     if (this.pending > 0 || this.stage.anyBusy()) {
-      this.toast("Секунду — вода ещё льётся");
+      this.toast("One moment — still pouring");
       return;
     }
-    this.toast("Ищу ход…", 900);
+    this.toast("Looking for a move…", 900);
     const epoch = this.epoch;
     setTimeout(() => {
       if (epoch !== this.epoch) return;
@@ -902,13 +896,13 @@ class Session {
       if (bfs.solvable && bfs.path?.length) move = bfs.path[0];
       else if (!bfs.exact) move = solveBeam(this.level, this.state, 700)?.[0];
       if (!move) {
-        this.toast(bfs.exact ? "Отсюда решения нет — отмените пару ходов" : "Не нашёл ход за отведённое время", 2600);
+        this.toast(bfs.exact ? "No solution from here — undo a few moves" : "Couldn't find a move in time", 2600);
         return;
       }
       if (this.selected !== move.from) this.select(move.from);
       this.stage.flashHint(move.from, move.to);
       const left = bfs.path?.length ?? 0;
-      this.toast(bfs.exact ? `До победы ещё ${left} ${plural(left, "ход", "хода", "ходов")}` : "Попробуйте так", 2200);
+      this.toast(bfs.exact ? `${left} ${moveWord(left)} to go` : "Try this", 2200);
     }, 40);
   }
 
