@@ -16,6 +16,7 @@ export interface ViewLayer {
 }
 
 export const LIFT = 0.42;
+const TAP_SCALE = 1.25;
 
 const _n = new THREE.Vector3();
 const _axis = new THREE.Vector3();
@@ -24,7 +25,8 @@ const _acc = new THREE.Vector3();
 
 let corkGeo: THREE.BufferGeometry | null = null;
 let corkMat: THREE.Material | null = null;
-let tapMat: THREE.Material | null = null;
+let chromeMat: THREE.Material | null = null;
+let knobMat: THREE.Material | null = null;
 let steelMat: THREE.MeshStandardMaterial | null = null;
 let linkGeo: THREE.BufferGeometry | null = null;
 let padBodyGeo: THREE.BufferGeometry | null = null;
@@ -117,6 +119,11 @@ export class VesselView {
   private corkV = 0;
   tap: THREE.Group | null = null;
   tapOpen = 0;
+  /** this bottle's own offset and wobble of the drifting reflections, so no two look alike */
+  private readonly sunBias = (Math.random() - 0.5) * 0.5;
+  private readonly sunPhase = Math.random() * Math.PI * 2;
+  /** progress of a light sweep over the glass, idle below 0 */
+  private glintT = -1;
   private coaster: THREE.Mesh | null = null;
   private lastKey = "";
 
@@ -135,6 +142,7 @@ export class VesselView {
     this.liquid = new THREE.Mesh(geos.liquid, this.liquidMat);
     this.liquidFringe = new THREE.Mesh(geos.liquid, this.liquidFringeMat);
     this.glass = new THREE.Mesh(geos.glass, this.glassMat);
+    this.glassMat.uniforms.uGlintH!.value = this.shape.yTop;
     this.liquid.renderOrder = 1;
     this.liquidFringe.renderOrder = 2;
     this.glass.renderOrder = 3;
@@ -156,31 +164,77 @@ export class VesselView {
     return this.shape.yTop;
   }
 
+  /**
+   * A chrome faucet: a flange on the glass, a short pipe curving down into a
+   * flared nozzle, and a red four-arm knob on top that turns while it pours.
+   */
   private buildTap() {
-    tapMat ??= new THREE.MeshStandardMaterial({ color: 0xd7dce6, metalness: 0.55, roughness: 0.28 });
+    chromeMat ??= new THREE.MeshStandardMaterial({ color: 0xd6deea, metalness: 1, roughness: 0.12 });
+    knobMat ??= new THREE.MeshPhysicalMaterial({ color: 0xff3d57, roughness: 0.32, clearcoat: 1, clearcoatRoughness: 0.08 });
     const g = new THREE.Group();
-    const spout = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.3, 14), tapMat);
-    spout.rotation.z = Math.PI / 2;
-    spout.position.set(0.12, 0, 0);
-    const mouth = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.07, 0.12, 14), tapMat);
-    mouth.position.set(0.25, -0.07, 0);
+    const along = (m: THREE.Mesh, x: number) => {
+      m.rotation.z = Math.PI / 2;
+      m.position.x = x;
+      return m;
+    };
+    const flange = along(new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.04, 24), chromeMat), 0);
+    const collar = new THREE.Mesh(new THREE.TorusGeometry(0.062, 0.016, 10, 24), chromeMat);
+    collar.rotation.y = Math.PI / 2;
+    collar.position.x = 0.03;
+    const pipe = along(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.055, 0.15, 20), chromeMat), 0.105);
+    // quarter torus from the pipe end (0.18, 0) down to the nozzle (0.25, -0.07)
+    const elbow = new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.05, 12, 16, Math.PI / 2), chromeMat);
+    elbow.position.set(0.18, -0.07, 0);
+    const nozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.07, 20), chromeMat);
+    nozzle.position.set(0.25, -0.105, 0);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.058, 0.012, 8, 24), chromeMat);
+    rim.rotation.x = Math.PI / 2;
+    rim.position.set(0.25, -0.14, 0);
+
     const handle = new THREE.Group();
-    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.14, 8), tapMat);
-    stem.position.y = 0.07;
-    const bar = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.04, 0.05), new THREE.MeshStandardMaterial({ color: 0xe8384f, roughness: 0.4 }));
-    bar.position.y = 0.15;
-    handle.add(stem, bar);
-    handle.position.set(0.12, 0.05, 0);
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.024, 0.08, 12), chromeMat);
+    stem.position.y = 0.04;
+    const hub = new THREE.Mesh(new THREE.SphereGeometry(0.036, 16, 12), knobMat);
+    hub.position.y = 0.1;
+    handle.add(stem, hub);
+    for (let k = 0; k < 4; k++) {
+      const a = (k * Math.PI) / 2 + Math.PI / 4;
+      const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.075, 8), knobMat);
+      arm.rotation.set(0, -a, Math.PI / 2);
+      arm.position.set(Math.cos(a) * 0.045, 0.1, Math.sin(a) * 0.045);
+      const ball = new THREE.Mesh(new THREE.SphereGeometry(0.026, 14, 10), knobMat);
+      ball.position.set(Math.cos(a) * 0.088, 0.1, Math.sin(a) * 0.088);
+      handle.add(arm, ball);
+    }
+    handle.position.set(0.1, 0.045, 0);
     handle.name = "handle";
-    g.add(spout, mouth, handle);
-    g.position.set(this.shape.radius - 0.04, 0.24, 0);
+    g.add(flange, collar, pipe, elbow, nozzle, rim, handle);
+    g.position.set(this.shape.radius - 0.02, 0.24, 0);
+    g.scale.setScalar(TAP_SCALE);
     this.tap = g;
     this.group.add(g);
   }
 
+  /** Valve outlet in the vessel's own frame: the bottom of the tap's nozzle. */
+  tapOutletLocal(out: THREE.Vector3) {
+    return out.set(0.25, -0.15, 0).multiplyScalar(TAP_SCALE).add(this.tap!.position);
+  }
+
   /** World position of the valve outlet (for streams). */
   tapOutlet(out: THREE.Vector3) {
-    return out.set(this.shape.radius + 0.21, 0.1, 0).applyMatrix4(this.group.matrixWorld);
+    return this.tapOutletLocal(out).applyMatrix4(this.group.matrixWorld);
+  }
+
+  /** Point the reflections at the drifting "sun", with this bottle's own offset. */
+  setSun(sun: number, time: number) {
+    const s = sun + this.sunBias + 0.1 * Math.sin(time * 0.45 + this.sunPhase);
+    this.glassMat.uniforms.uSun!.value = s;
+    this.liquidMat.uniforms.uSun!.value = s;
+  }
+
+  /** Start a soft band of light sweeping up the glass. */
+  glint() {
+    if (this.glintT < 0) this.glintT = 0;
   }
 
   setOrderLook(color: Color) {
@@ -464,6 +518,11 @@ export class VesselView {
   }
 
   update(dt: number, time: number) {
+    if (this.glintT >= 0) {
+      this.glintT += dt / 0.9;
+      if (this.glintT >= 1) this.glintT = -1;
+    }
+    this.glassMat.uniforms.uGlint!.value = this.glintT;
     if (!this.animated) {
       [this.lift, this.liftV] = spring(this.lift, this.liftV, this.liftTarget, 320, 20, dt);
       [this.shakeX, this.shakeV] = spring(this.shakeX, this.shakeV, 0, 900, 14, dt);

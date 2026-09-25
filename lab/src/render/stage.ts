@@ -3,7 +3,7 @@ import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment
 import type { LevelDef, State } from "../engine/types";
 import { PALETTE } from "../palette";
 import { Particles, Stream } from "./fx";
-import { hexToVec3, makeShadowTexture } from "./materials";
+import { hexToVec3, makeShadowTexture, SUN } from "./materials";
 import { levelFor, spillAngle } from "./shapes";
 import { LIFT, VesselView } from "./vessel";
 
@@ -69,7 +69,16 @@ export class Stage {
   /** the stage owns its element; the app mounts it wherever the game screen is */
   readonly container: HTMLElement;
 
+  /**
+   * In high quality the reflections drift and glint all the time, so the loop keeps
+   * running at ~30 fps when nothing else moves; in low quality it sleeps as before.
+   */
+  private readonly ambient: boolean;
+  private nextGlint = 3;
+  private disposed = false;
+
   constructor(readonly quality: Quality) {
+    this.ambient = quality === "high";
     this.container = document.createElement("div");
     this.container.className = "stage-root";
     this.container.style.cssText = "position:absolute;inset:0;";
@@ -325,6 +334,10 @@ export class Stage {
   }
 
   private frame = (now: number) => {
+    if (this.disposed) {
+      this.running = false;
+      return;
+    }
     const dt = Math.min(0.05, Math.max(0, (now - this.last) / 1000));
     this.last = now;
     this.time += dt;
@@ -348,11 +361,23 @@ export class Stage {
       active ||= c.active;
     }
     for (const s of this.streams) (s.mat.uniforms.uTime!.value as number) = this.time;
+    // the "sun" wanders slowly, so the highlights on the glass are never quite still
+    const sun = 0.55 * Math.sin(this.time * 0.12) + 0.22 * Math.sin(this.time * 0.29 + 1.3);
+    SUN.value = sun;
+    for (const v of this.views) v.setSun(sun, this.time);
+    for (const c of this.cups) c?.setSun(sun, this.time);
+    if (this.ambient && this.time > this.nextGlint) {
+      const idle = this.views.filter((v) => !v.animated && !v.busy);
+      idle[Math.floor(Math.random() * idle.length)]?.glint();
+      this.nextGlint = this.time + 3.5 + Math.random() * 4.5;
+    }
     this.particles.update(dt);
     this.renderer.render(this.scene, this.camera);
     this.keepAlive -= dt;
     if (active || this.keepAlive > 0) {
       requestAnimationFrame(this.frame);
+    } else if (this.ambient && this.views.length > 0 && this.container.isConnected) {
+      setTimeout(() => requestAnimationFrame(this.frame), 30);
     } else {
       this.running = false;
     }
@@ -474,7 +499,7 @@ export class Stage {
     // local point that must sit at L: the lip (tilting bottles) or the tap outlet (valve)
     const shape = src.shape;
     const lipLocal = valve
-      ? new THREE.Vector3(shape.radius + 0.21, 0.1, 0)
+      ? src.tapOutletLocal(new THREE.Vector3())
       : new THREE.Vector3(dir * shape.rLipOuter * 0.92, shape.yTop - 0.005, 0);
     const poseFor = (phi: number, outPos: THREE.Vector3) => {
       const rot = valve ? 0 : -dir * phi;
@@ -686,6 +711,7 @@ export class Stage {
   }
 
   dispose() {
+    this.disposed = true;
     this.renderer.dispose();
     this.container.remove();
   }
