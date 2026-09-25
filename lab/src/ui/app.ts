@@ -157,7 +157,7 @@ export class App {
           <button type="button" class="gbtn big tier-play" data-go="play">${ICONS.play}<span>Play</span></button>
           <button type="button" class="gbtn glass" data-go="map">${ICONS.map}<span>Level map</span></button>
         </section>
-        <button type="button" class="gbtn blue wide" data-go="free"><span class="wide-icon">${ICONS.mix}</span><b>Free play</b></button>
+        <button type="button" class="gbtn blue wide" data-go="free"><span class="wide-icon">${ICONS.free}</span><b>Free play</b></button>
         <div class="settings">
           <div class="seg" role="group" aria-label="Graphics">
             <button type="button" data-q="high" aria-pressed="${this.quality === "high"}">Graphics: high</button>

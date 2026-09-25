@@ -3,9 +3,17 @@ import * as THREE from "three";
 export const MAX_LAYERS = 8;
 export const PROFILE_SAMPLES = 24;
 
-/** Procedural studio environment: dark gradient + two softboxes + a top light. */
+/**
+ * Procedural studio environment: dark gradient, two softboxes, a top light and
+ * a small bright sun. uSun turns it all around the vertical axis (radians), so
+ * reflections, and the sun's glint most of all, drift slowly over the glass.
+ */
 const ENV = /* glsl */ `
+uniform float uSun;
 vec3 envColor(vec3 r) {
+  float cs = cos(uSun);
+  float sn = sin(uSun);
+  r = vec3(cs * r.x + sn * r.z, r.y, cs * r.z - sn * r.x);
   float y = r.y;
   vec3 col = mix(vec3(0.03, 0.04, 0.08), vec3(0.20, 0.25, 0.36), smoothstep(-0.4, 0.9, y));
   float az = atan(r.x, r.z);
@@ -16,6 +24,8 @@ vec3 envColor(vec3 r) {
   col += vec3(1.0, 0.97, 0.92) * k1 * 2.4;
   col += vec3(0.65, 0.82, 1.0) * k2 * 1.8;
   col += vec3(0.95, 0.97, 1.0) * k3 * 1.4;
+  float sun = smoothstep(0.972, 0.994, dot(normalize(r), vec3(-0.52, 0.42, 0.74)));
+  col += vec3(1.0, 0.96, 0.88) * sun * 14.0;
   return col;
 }
 `;
@@ -30,12 +40,17 @@ float vnoise(vec2 p) {
 }
 `;
 
+/** shared by every material that reads the environment but has no per-vessel drift (streams) */
+export const SUN = { value: 0 };
+
 const BASIC_VERT = /* glsl */ `
 varying vec3 vWorld;
 varying vec3 vNormalW;
 varying vec2 vUv;
+varying vec3 vLocal;
 void main() {
   vec4 wp = modelMatrix * vec4(position, 1.0);
+  vLocal = position;
   vWorld = wp.xyz;
   vNormalW = normalize(mat3(modelMatrix) * normal);
   vUv = uv;
@@ -158,8 +173,11 @@ uniform vec3 uGlowColor;
 uniform float uAlpha;
 uniform vec3 uTint;
 uniform float uTintAmt;
+uniform float uGlint;
+uniform float uGlintH;
 varying vec3 vWorld;
 varying vec3 vNormalW;
+varying vec3 vLocal;
 ${ENV}
 void main() {
   vec3 N = normalize(vNormalW);
@@ -172,6 +190,13 @@ void main() {
   float rim = smoothstep(0.38, 0.0, ndv);
   col += vec3(0.55, 0.66, 0.82) * rim * 0.22 + uTint * uTintAmt;
   a += rim * 0.16 + uTintAmt * 0.6;
+  // now and then a soft band of light sweeps up the glass (uGlint: 0..1, idle below 0)
+  if (uGlint >= 0.0) {
+    float d = vLocal.y / uGlintH + vLocal.x * 0.9;
+    float band = smoothstep(0.16, 0.0, abs(d - mix(-0.4, 1.5, uGlint))) * sin(3.14159 * uGlint) * (0.35 + 0.65 * ndv);
+    col += vec3(1.0, 0.98, 0.94) * band * 0.5;
+    a += band * 0.28;
+  }
   col += uGlowColor * uGlow * (0.18 + 0.9 * rim);
   a += uGlow * 0.12 * rim;
   a = clamp(a, 0.0, 1.0) * uAlpha;
@@ -248,6 +273,7 @@ export function makeLiquidMaterials(profile: Float32Array, y0: number, y1: numbe
       uInvModel: { value: new THREE.Matrix4() },
       uAgit: { value: 0 },
       uDim: { value: 1 },
+      uSun: { value: 0 },
     },
   });
   const fringe = new THREE.ShaderMaterial({
@@ -276,6 +302,9 @@ export function makeGlassMaterial() {
       uAlpha: { value: 1 },
       uTint: { value: new THREE.Vector3(0.6, 0.75, 1.0) },
       uTintAmt: { value: 0.04 },
+      uSun: { value: 0 },
+      uGlint: { value: -1 },
+      uGlintH: { value: 1 },
     },
   });
 }
@@ -284,7 +313,7 @@ export function makeStreamMaterial() {
   return new THREE.ShaderMaterial({
     vertexShader: BASIC_VERT,
     fragmentShader: STREAM_FRAG,
-    uniforms: { uColor: { value: new THREE.Vector3(1, 1, 1) }, uTime: { value: 0 } },
+    uniforms: { uColor: { value: new THREE.Vector3(1, 1, 1) }, uTime: { value: 0 }, uSun: SUN },
   });
 }
 
