@@ -1051,6 +1051,18 @@ h3 {
   width: 26px;
   height: 26px;
 }
+/* idle nudge in a dead end: Undo bounces twice */
+.gbtn.act.nudge {
+  animation: nudge 0.8s ease-in-out 2;
+}
+@keyframes nudge {
+  30% {
+    transform: translateY(-6px) scale(1.06);
+  }
+  60% {
+    transform: translateY(0) scale(0.98);
+  }
+}
 
 .toast {
   position: absolute;

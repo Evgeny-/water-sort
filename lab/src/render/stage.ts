@@ -70,11 +70,10 @@ export class Stage {
   readonly container: HTMLElement;
 
   /**
-   * In high quality the reflections drift and glint all the time, so the loop keeps
-   * running at ~30 fps when nothing else moves; in low quality it sleeps as before.
+   * In high quality the reflections drift all the time, so the loop keeps running
+   * at ~30 fps when nothing else moves; in low quality it sleeps as before.
    */
   private readonly ambient: boolean;
-  private nextGlint = 3;
   private disposed = false;
 
   constructor(readonly quality: Quality) {
@@ -366,11 +365,6 @@ export class Stage {
     SUN.value = sun;
     for (const v of this.views) v.setSun(sun, this.time);
     for (const c of this.cups) c?.setSun(sun, this.time);
-    if (this.ambient && this.time > this.nextGlint) {
-      const idle = this.views.filter((v) => !v.animated && !v.busy);
-      idle[Math.floor(Math.random() * idle.length)]?.glint();
-      this.nextGlint = this.time + 3.5 + Math.random() * 4.5;
-    }
     this.particles.update(dt);
     this.renderer.render(this.scene, this.camera);
     this.keepAlive -= dt;
@@ -695,6 +689,16 @@ export class Stage {
     const top = this.boardCenter.y + this.boardSize.y / 2 + 1;
     this.particles.confettiRain(this.boardCenter.x, top, this.boardSize.x + 2, colors, 220);
     await this.wait(1.1);
+  }
+
+  /** Idle nudge: light runs up a vessel twice, pointing at it without selecting it. */
+  glint(i: number) {
+    this.views[i]?.glint(2);
+    this.wake();
+  }
+
+  stopGlints() {
+    for (const v of this.views) v.stopGlint();
   }
 
   /** Hint helper: brief glow on two vessels. */
