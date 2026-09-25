@@ -175,6 +175,44 @@ export function casualRate(level: LevelDef, start: State, sims: number, rng: Rng
 
 // ─── Beam search: near-optimal par for levels too big for BFS ───
 
+/**
+ * Depth-first search that tries the most natural moves first and remembers only
+ * position hashes, so it covers far more positions than BFS in the same memory.
+ * `complete` means every reachable position was visited: with no path, the
+ * position is proven lost. The path is a solution, not necessarily the shortest.
+ */
+export function solveDfs(level: LevelDef, start: State, cap = 300_000): { path: Move[] | null; complete: boolean } {
+  if (isWin(start, level.mode)) return { path: [], complete: true };
+  const expand = (s: State) =>
+    searchMoves(s, level)
+      .map((m) => {
+        const n = applyPour(s, level, m.from, m.to).state;
+        return { m, n, k: heuristic(n, level) };
+      })
+      .sort((a, b) => a.k - b.k);
+  const seen = new Set<string>([hashState(start)]);
+  // explicit stack: solution paths can be far deeper than the call stack allows
+  const stack = [{ kids: expand(start), i: 0 }];
+  const path: Move[] = [];
+  while (stack.length) {
+    const top = stack[stack.length - 1]!;
+    if (top.i >= top.kids.length) {
+      stack.pop();
+      path.pop();
+      continue;
+    }
+    const { m, n } = top.kids[top.i++]!;
+    const h = hashState(n);
+    if (seen.has(h)) continue;
+    seen.add(h);
+    if (isWin(n, level.mode)) return { path: [...path, m], complete: true };
+    if (seen.size > cap) return { path: null, complete: false };
+    path.push(m);
+    stack.push({ kids: expand(n), i: 0 });
+  }
+  return { path: null, complete: true };
+}
+
 export function heuristic(state: State, level: LevelDef): number {
   let boundaries = 0;
   const holders = new Map<number, number>();

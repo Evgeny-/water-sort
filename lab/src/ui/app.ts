@@ -4,9 +4,10 @@ import track2 from "../levels/track2.json";
 import track3 from "../levels/track3.json";
 import freeData from "../levels/free.json";
 import logoUrl from "../assets/logo-wide.webp";
-import type { LevelDef, Move, State } from "../engine/types";
+import type { LevelDef, State } from "../engine/types";
 import { applyPour, canPour, initialState, isWin, sourceBlock, sourceRun, validMoves } from "../engine/rules";
 import { solveBeam, solveBfs } from "../engine/solver";
+import { solveAsync, type SolveResult } from "../engine/solveAsync";
 import { Stage, type Quality } from "../render/stage";
 import { css } from "../palette";
 import { MECHANICS, TIERS } from "./mechanics";
@@ -511,8 +512,11 @@ class Session {
   private toastTimer = 0;
   private overlay: HTMLElement | null = null;
   private idleTimer = 0;
-  /** next move of a solution, cached for the position it was found for */
-  private best: { state: State; move?: Move; exact: boolean; left: number } | null = null;
+  /** the background solver's answer for a position, and the search still running */
+  private analysis: { state: State; r: SolveResult } | null = null;
+  private analyzing: { state: State; done: Promise<SolveResult | null> } | null = null;
+  /** position we already said can't be won */
+  private warnedAt: State | null = null;
 
   constructor(
     private app: App,
@@ -554,6 +558,7 @@ class Session {
     this.stage.build(level, this.state);
     this.updateHud();
     this.markActive();
+    this.analyze();
   }
 
   dispose() {
@@ -623,31 +628,54 @@ class Session {
   /** After a long pause, light runs up the bottle to take next; in a dead end, Undo bounces instead. */
   private nudge() {
     if (this.disposed || this.won) return;
-    if (this.overlay || this.pending > 0 || this.stage.anyBusy()) {
+    const r = this.analysis?.state === this.state ? this.analysis.r : null;
+    if (!r || this.overlay || this.pending > 0 || this.stage.anyBusy()) {
       this.idleTimer = window.setTimeout(() => this.nudge(), 3000);
       return;
     }
-    const { move, exact } = this.bestMove();
-    if (move) this.stage.glint(move.from);
-    else if (exact && this.history.length) {
-      const undo = this.hud.querySelector<HTMLElement>('[data-act="undo"]')!;
-      undo.classList.remove("nudge");
-      void undo.offsetWidth;
-      undo.classList.add("nudge");
-    }
+    if (r.move) this.stage.glint(r.move.from);
+    else if (r.solvable === false && this.history.length) this.bounceUndo();
     this.idleTimer = window.setTimeout(() => this.nudge(), NUDGE_EVERY);
   }
 
-  /** Next move of a solution from the current position (solved once per position). */
-  private bestMove() {
-    if (this.best?.state !== this.state) {
-      let move: Move | undefined;
-      const bfs = solveBfs(this.level, this.state, 60_000);
-      if (bfs.solvable && bfs.path?.length) move = bfs.path[0];
-      else if (!bfs.exact) move = solveBeam(this.level, this.state, 700)?.[0];
-      this.best = { state: this.state, move, exact: bfs.exact, left: bfs.path?.length ?? 0 };
-    }
-    return this.best;
+  private bounceUndo() {
+    const undo = this.hud.querySelector<HTMLElement>('[data-act="undo"]')!;
+    undo.classList.remove("nudge");
+    void undo.offsetWidth;
+    undo.classList.add("nudge");
+  }
+
+  /** Solve the current position in the background (a newer position cancels the search). */
+  private analyze() {
+    // a "no solution" message is about the previous position
+    if (this.warnedAt && this.warnedAt !== this.state) this.hideToast();
+    const state = this.state;
+    const done = solveAsync(this.level, state);
+    this.analyzing = { state, done };
+    void done.then((r) => {
+      if (!r || this.disposed || state !== this.state) return;
+      this.analysis = { state, r };
+      this.warnIfLost();
+    });
+  }
+
+  /** The solver's answer for the current position, waiting for the search if it's still running. */
+  private async currentAnalysis(): Promise<SolveResult | null> {
+    const state = this.state;
+    if (this.analysis?.state === state) return this.analysis.r;
+    if (this.analyzing?.state !== state) this.analyze();
+    const r = await this.analyzing!.done;
+    return state === this.state ? r : null;
+  }
+
+  /** Once the position can no longer be won, say so (once per position) and bounce Undo. */
+  private warnIfLost() {
+    const a = this.analysis;
+    if (!a || a.state !== this.state || a.r.solvable !== false || this.warnedAt === this.state) return;
+    if (this.won || this.overlay || this.pending > 0 || !this.history.length) return;
+    this.warnedAt = this.state;
+    this.toast("No solution from here — undo a few moves", 3200);
+    this.bounceUndo();
   }
 
   /** Rules cards shown one after another before the level starts. */
@@ -699,6 +727,11 @@ class Session {
       sfx.setMuted(!sfx.muted);
       snd.innerHTML = `${sfx.muted ? ICONS.mute : ICONS.sound}<span>${sfx.muted ? "Sound off" : "Sound on"}</span>`;
     });
+  }
+
+  private hideToast() {
+    clearTimeout(this.toastTimer);
+    this.hud.querySelector(".toast")!.classList.remove("show");
   }
 
   private toast(html: string, ms = 1900) {
@@ -800,6 +833,7 @@ class Session {
     this.selected = null;
     this.pending++;
     this.updateHud();
+    this.analyze();
 
     buzz(12);
     // the sound is scheduled for the moment the liquid leaves the lip
@@ -817,6 +851,7 @@ class Session {
     this.pending--;
     this.updateHud();
     this.checkEnd();
+    this.warnIfLost();
   }
 
   private checkEnd() {
@@ -916,6 +951,7 @@ class Session {
     this.stage.sync(this.state);
     sfx.undo();
     this.updateHud();
+    this.analyze();
   }
 
   private restart(silent = false) {
@@ -930,27 +966,27 @@ class Session {
     if (!silent) sfx.undo();
     this.updateHud();
     this.markActive();
+    this.analyze();
   }
 
-  private hint() {
+  private async hint() {
     if (this.won) return;
     if (this.pending > 0 || this.stage.anyBusy()) {
       this.toast("One moment — still pouring");
       return;
     }
-    this.toast("Looking for a move…", 900);
     const epoch = this.epoch;
-    setTimeout(() => {
-      if (epoch !== this.epoch) return;
-      const { move, exact, left } = this.bestMove();
-      if (!move) {
-        this.toast(exact ? "No solution from here — undo a few moves" : "Couldn't find a move in time", 2600);
-        return;
-      }
-      if (this.selected !== move.from) this.select(move.from);
-      this.stage.flashHint(move.from, move.to);
-      this.toast(exact ? `${left} ${moveWord(left)} to go` : "Try this", 2200);
-    }, 40);
+    if (this.analysis?.state !== this.state) this.toast("Looking for a move…", 1600);
+    const r = await this.currentAnalysis();
+    if (!r || epoch !== this.epoch || this.disposed) return;
+    if (!r.move) {
+      this.toast(r.solvable === false ? "No solution from here — undo a few moves" : "Couldn't find a move in time", 2600);
+      if (r.solvable === false) this.bounceUndo();
+      return;
+    }
+    if (this.selected !== r.move.from) this.select(r.move.from);
+    this.stage.flashHint(r.move.from, r.move.to);
+    this.toast(r.optimal ? `${r.left} ${moveWord(r.left)} to go` : "Try this", 2200);
   }
 
   /** dev helper: tap through a solution from the current state */
