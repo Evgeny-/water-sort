@@ -1,0 +1,101 @@
+L  1 3c  6f 2e    solve mean 100%  p10 100%  p90 100%  par fixed 18 vs optimal 11–17
+L  2 3c  6f 2e    solve mean 100%  p10 100%  p90 100%  par fixed 18 vs optimal 13–17
+L  3 3c  6f 2e    solve mean 100%  p10 100%  p90 100%  par fixed 18 vs optimal 12–16
+L  4 3c  6f 2e    solve mean 100%  p10 100%  p90 100%  par fixed 18 vs optimal 11–15
+L  5 3c  6f 2e    solve mean 100%  p10 100%  p90 100%  par fixed 18 vs optimal 12–15
+L  6 4c  8f 2e    solve mean  99%  p10  97%  p90 100%
+L  7 4c  8f 2e    solve mean  97%  p10  94%  p90 100%
+L  8 4c  8f 2e    solve mean  99%  p10  97%  p90 100%  par fixed 27 vs optimal 16–16
+L  9 4c  8f 2e    solve mean  98%  p10  96%  p90 100%
+L 10 3c  6f 1e CH solve mean  34%  p10   6%  p90  58%  par fixed 17 vs optimal 10–16
+L 11 5c 10f 2e    solve mean  91%  p10  83%  p90  97%
+L 12 5c 10f 2e    solve mean  91%  p10  81%  p90  99%
+L 13 5c 10f 2e    solve mean  90%  p10  80%  p90  96%
+L 14 5c 10f 2e    solve mean  84%  p10  74%  p90  96%
+L 15 3c  6f 1e CH solve mean  43%  p10  19%  p90  68%  par fixed 17 vs optimal 9–16
+L 16 5c 10f 2e    solve mean  88%  p10  83%  p90  96%
+L 17 5c 10f 2e    solve mean  87%  p10  81%  p90  97%
+L 18 5c 10f 2e    solve mean  88%  p10  67%  p90  98%
+L 19 5c 10f 2e    solve mean  86%  p10  70%  p90  98%
+L 20 3c  6f 1e CH solve mean  38%  p10  11%  p90  78%  par fixed 17 vs optimal 10–15
+L 21 6c 12f 2e    solve mean  65%  p10  51%  p90  78%
+L 22 6c 12f 2e    solve mean  58%  p10  30%  p90  82%
+L 23 6c 12f 2e    solve mean  71%  p10  33%  p90  88%
+L 24 6c 12f 2e    solve mean  68%  p10  54%  p90  88%
+L 25 3c  6f 1e CH solve mean  31%  p10  15%  p90  54%  par fixed 17 vs optimal 10–17
+L 26 6c 12f 2e    solve mean  68%  p10  48%  p90  82%
+L 27 6c 12f 2e    solve mean  67%  p10  48%  p90  84%
+L 28 6c 12f 2e    solve mean  71%  p10  58%  p90  85%
+L 29 6c 12f 2e    solve mean  65%  p10  44%  p90  77%
+L 30 3c  6f 1e CH solve mean  52%  p10  27%  p90  71%  par fixed 17 vs optimal 11–16
+L 31 6c 12f 2e    solve mean  67%  p10  49%  p90  76%
+L 32 6c 12f 2e    solve mean  72%  p10  57%  p90  80%
+L 33 6c 12f 2e    solve mean  60%  p10  41%  p90  80%
+L 34 6c 12f 2e    solve mean  63%  p10  35%  p90  84%
+L 35 4c  8f 1e CH solve mean  13%  p10   6%  p90  20%  par fixed 23 vs optimal 17–23
+L 36 5c 15f 2e    solve mean  79%  p10  67%  p90  91%
+L 37 5c 15f 2e    solve mean  79%  p10  64%  p90  93%
+L 38 5c 15f 2e    solve mean  78%  p10  63%  p90  93%
+L 39 5c 15f 2e    solve mean  84%  p10  72%  p90  94%
+L 40 4c  8f 1e CH solve mean  23%  p10   3%  p90  48%  par fixed 23 vs optimal 16–23
+L 41 5c 15f 2e    solve mean  87%  p10  72%  p90  96%
+L 42 5c 15f 2e    solve mean  83%  p10  78%  p90  89%
+L 43 5c 15f 2e    solve mean  82%  p10  72%  p90  93%
+L 44 5c 15f 2e    solve mean  79%  p10  65%  p90  93%
+L 45 4c  8f 1e CH solve mean  15%  p10   4%  p90  26%  par fixed 23 vs optimal 18–24
+L 46 5c 15f 2e    solve mean  88%  p10  82%  p90  96%
+L 47 5c 15f 2e    solve mean  79%  p10  57%  p90  92%
+L 48 5c 15f 2e    solve mean  82%  p10  75%  p90  93%
+L 49 5c 15f 2e    solve mean  85%  p10  71%  p90  95%
+L 50 4c  8f 1e CH solve mean  23%  p10   7%  p90  32%  par fixed 23 vs optimal 18–24
+L 51 6c 18f 2e    solve mean  55%  p10  38%  p90  70%
+L 52 6c 18f 2e    solve mean  60%  p10  48%  p90  73%
+L 53 6c 18f 2e    solve mean  55%  p10  45%  p90  66%
+L 54 6c 18f 2e    solve mean  47%  p10  31%  p90  73%
+L 55 4c  8f 1e CH solve mean  18%  p10   5%  p90  28%  par fixed 23 vs optimal 15–24
+L 56 6c 18f 2e    solve mean  55%  p10  38%  p90  70%
+L 57 6c 18f 2e    solve mean  59%  p10  47%  p90  72%
+L 58 6c 18f 2e    solve mean  56%  p10  33%  p90  84%
+L 59 6c 18f 2e    solve mean  58%  p10  29%  p90  74%
+L 60 4c  8f 1e CH solve mean  23%  p10   9%  p90  44%  par fixed 23 vs optimal 17–21
+L 61 6c 18f 2e    solve mean  54%  p10  39%  p90  77%
+L 62 6c 18f 2e    solve mean  63%  p10  53%  p90  75%
+L 63 6c 18f 2e    solve mean  56%  p10  43%  p90  74%
+L 64 6c 18f 2e    solve mean  46%  p10  25%  p90  59%
+L 65 4c  8f 1e CH solve mean  26%  p10   8%  p90  50%  par fixed 23 vs optimal 17–22
+L 66 6c 18f 2e    solve mean  54%  p10  31%  p90  76%
+L 67 6c 18f 2e    solve mean  48%  p10  38%  p90  65%
+L 68 6c 18f 2e    solve mean  60%  p10  40%  p90  83%
+L 69 6c 18f 2e    solve mean  52%  p10  35%  p90  72%
+L 70 4c  8f 1e CH solve mean  13%  p10   5%  p90  23%  par fixed 23 vs optimal 18–23
+L 71 7c 14f 2e    solve mean  40%  p10  33%  p90  51%
+L 72 7c 14f 2e    solve mean  45%  p10  25%  p90  68%
+L 73 7c 14f 2e    solve mean  47%  p10  28%  p90  64%
+L 74 7c 14f 2e    solve mean  39%  p10  24%  p90  54%
+L 75 4c  8f 1e CH solve mean  16%  p10   4%  p90  37%  par fixed 23 vs optimal 18–23
+L 76 7c 14f 2e    solve mean  46%  p10  34%  p90  72%
+L 77 7c 14f 2e    solve mean  40%  p10  22%  p90  57%
+L 78 7c 14f 2e    solve mean  40%  p10  27%  p90  59%
+L 79 7c 14f 2e    solve mean  42%  p10  26%  p90  68%
+L 80 4c  8f 1e CH solve mean  22%  p10   3%  p90  40%  par fixed 23 vs optimal 13–21
+L 81 7c 14f 2e    solve mean  40%  p10  32%  p90  57%
+L 82 7c 14f 2e    solve mean  43%  p10  35%  p90  56%
+L 83 7c 14f 2e    solve mean  46%  p10  29%  p90  62%
+L 84 7c 14f 2e    solve mean  45%  p10  30%  p90  62%
+L 85 4c  8f 1e CH solve mean  26%  p10   4%  p90  51%  par fixed 23 vs optimal 16–23
+L 86 7c 14f 2e    solve mean  40%  p10  18%  p90  60%
+L 87 7c 14f 2e    solve mean  45%  p10  34%  p90  53%
+L 88 7c 14f 2e    solve mean  40%  p10  18%  p90  53%
+L 89 7c 14f 2e    solve mean  37%  p10  13%  p90  59%
+L 90 4c  8f 1e CH solve mean  21%  p10   4%  p90  44%  par fixed 23 vs optimal 14–23
+L 91 7c 21f 2e    solve mean  25%  p10  11%  p90  35%
+L 92 7c 21f 2e    solve mean  39%  p10  23%  p90  52%
+L 93 7c 21f 2e    solve mean  36%  p10  22%  p90  47%
+L 94 7c 21f 2e    solve mean  27%  p10  18%  p90  43%
+L 95 4c  8f 1e CH solve mean  23%  p10   5%  p90  46%  par fixed 23 vs optimal 17–24
+L 96 7c 21f 2e    solve mean  32%  p10  15%  p90  53%
+L 97 7c 21f 2e    solve mean  25%  p10  15%  p90  33%
+L 98 7c 21f 2e    solve mean  30%  p10   8%  p90  57%
+L 99 7c 21f 2e    solve mean  34%  p10  22%  p90  47%
+L100 4c  8f 1e CH solve mean  28%  p10   5%  p90  53%  par fixed 23 vs optimal 18–22
+npx tsx lab/scripts/analyze-current.ts > lab/analysis/current.json  193.01s user 1.48s system 102% cpu 3:09.99 total
