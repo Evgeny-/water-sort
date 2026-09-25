@@ -16,7 +16,9 @@ export interface ViewLayer {
 }
 
 export const LIFT = 0.42;
-const TAP_SCALE = 1.25;
+const TAP_SCALE = 0.85;
+/** x of the tap's nozzle in its own frame (the pipe runs from the glass to here) */
+const NOZZLE_X = 0.21;
 
 const _n = new THREE.Vector3();
 const _axis = new THREE.Vector3();
@@ -181,15 +183,15 @@ export class VesselView {
     const collar = new THREE.Mesh(new THREE.TorusGeometry(0.062, 0.016, 10, 24), chromeMat);
     collar.rotation.y = Math.PI / 2;
     collar.position.x = 0.03;
-    const pipe = along(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.055, 0.15, 20), chromeMat), 0.105);
-    // quarter torus from the pipe end (0.18, 0) down to the nozzle (0.25, -0.07)
+    const pipe = along(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.055, NOZZLE_X - 0.1, 20), chromeMat), (NOZZLE_X - 0.04) / 2);
+    // quarter torus from the pipe end down to the nozzle
     const elbow = new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.05, 12, 16, Math.PI / 2), chromeMat);
-    elbow.position.set(0.18, -0.07, 0);
+    elbow.position.set(NOZZLE_X - 0.07, -0.07, 0);
     const nozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.07, 20), chromeMat);
-    nozzle.position.set(0.25, -0.105, 0);
+    nozzle.position.set(NOZZLE_X, -0.105, 0);
     const rim = new THREE.Mesh(new THREE.TorusGeometry(0.058, 0.012, 8, 24), chromeMat);
     rim.rotation.x = Math.PI / 2;
-    rim.position.set(0.25, -0.14, 0);
+    rim.position.set(NOZZLE_X, -0.14, 0);
 
     const handle = new THREE.Group();
     const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.024, 0.08, 12), chromeMat);
@@ -206,7 +208,7 @@ export class VesselView {
       ball.position.set(Math.cos(a) * 0.088, 0.1, Math.sin(a) * 0.088);
       handle.add(arm, ball);
     }
-    handle.position.set(0.1, 0.045, 0);
+    handle.position.set(0.08, 0.045, 0);
     handle.name = "handle";
     g.add(flange, collar, pipe, elbow, nozzle, rim, handle);
     g.position.set(this.shape.radius - 0.02, 0.24, 0);
@@ -217,7 +219,7 @@ export class VesselView {
 
   /** Valve outlet in the vessel's own frame: the bottom of the tap's nozzle. */
   tapOutletLocal(out: THREE.Vector3) {
-    return out.set(0.25, -0.15, 0).multiplyScalar(TAP_SCALE).add(this.tap!.position);
+    return out.set(NOZZLE_X, -0.15, 0).multiplyScalar(TAP_SCALE).add(this.tap!.position);
   }
 
   /** World position of the valve outlet (for streams). */
@@ -568,13 +570,13 @@ export class VesselView {
       this.placeCork();
     }
 
-    // shadow follows the vessel on the floor
+    // a soft contact shadow under the vessel only: wide ones merged into a stripe along the row
     const lifted = Math.max(0, this.pos.y - this.base.y);
     const r = this.shape.radius;
     this.shadow.position.set(this.pos.x, this.base.y + 0.004, this.base.z);
     const spread = 1 + lifted * 0.35;
-    this.shadow.scale.set(r * 2.7 * spread, r * 1.25 * spread, 1);
-    (this.shadow.material as THREE.MeshBasicMaterial).opacity = Math.max(0, 0.85 - lifted * 1.1);
+    this.shadow.scale.set(r * 1.9 * spread, r * 1.1 * spread, 1);
+    (this.shadow.material as THREE.MeshBasicMaterial).opacity = Math.max(0, 0.6 - lifted * 0.8);
 
     this.updateLiquid(time);
   }
