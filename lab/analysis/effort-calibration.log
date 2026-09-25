@@ -1,0 +1,15 @@
+3c×2 2e              effort D   0% (p10 0% p90 0%) ratio med 1.0  casual D 0% 64ms
+4c×2 2e              effort D   0% (p10 0% p90 0%) ratio med 1.0  casual D 1% 112ms
+5c×2 2e              effort D   0% (p10 0% p90 0%) ratio med 1.0  casual D 17% 473ms
+6c×2 2e              effort D   1% (p10 0% p90 5%) ratio med 1.0  casual D 37% 869ms
+7c×2 2e              effort D   4% (p10 0% p90 6%) ratio med 1.1  casual D 60% 1393ms
+8c×2 2e              effort D   9% (p10 2% p90 17%) ratio med 1.3  casual D 81% 2179ms
+4c×2 1e              effort D  20% (p10 4% p90 36%) ratio med 2.0  casual D 85% 1216ms
+5c×1 1e              effort D   6% (p10 0% p90 12%) ratio med 1.5  casual D 62% 835ms
+6c×2 1e+flask        effort D  11% (p10 2% p90 26%) ratio med 1.5  casual D 73% 1138ms
+7c×2 1e+flask        effort D  18% (p10 7% p90 30%) ratio med 2.2  casual D 88% 1760ms
+6c×2 jar any 1e      effort D   0% (p10 0% p90 0%) ratio med 1.0  casual D 3% 642ms
+orders 6c 0e         effort D   1% (p10 0% p90 2%) ratio med 1.0  casual D 14% 247ms
+orders 7c 1e 1slot   effort D   3% (p10 0% p90 12%) ratio med 1.0  casual D 42% 338ms
+valve 6c×2 2e 3v     effort D   0% (p10 0% p90 1%) ratio med 1.0  casual D 33% 384ms
+locks 6c×2 1e        effort D  11% (p10 4% p90 24%) ratio med 1.5  casual D 79% 1007ms
