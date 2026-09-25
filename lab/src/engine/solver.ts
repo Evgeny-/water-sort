@@ -180,9 +180,10 @@ export function casualRate(level: LevelDef, start: State, sims: number, rng: Rng
  * position hashes, so it covers far more positions than BFS in the same memory.
  * `complete` means every reachable position was visited: with no path, the
  * position is proven lost. The path is a solution, not necessarily the shortest.
+ * `visited` counts the positions seen (all of them when complete).
  */
-export function solveDfs(level: LevelDef, start: State, cap = 300_000): { path: Move[] | null; complete: boolean } {
-  if (isWin(start, level.mode)) return { path: [], complete: true };
+export function solveDfs(level: LevelDef, start: State, cap = 300_000): { path: Move[] | null; complete: boolean; visited: number } {
+  if (isWin(start, level.mode)) return { path: [], complete: true, visited: 1 };
   const expand = (s: State) =>
     searchMoves(s, level)
       .map((m) => {
@@ -205,12 +206,12 @@ export function solveDfs(level: LevelDef, start: State, cap = 300_000): { path: 
     const h = hashState(n);
     if (seen.has(h)) continue;
     seen.add(h);
-    if (isWin(n, level.mode)) return { path: [...path, m], complete: true };
-    if (seen.size > cap) return { path: null, complete: false };
+    if (isWin(n, level.mode)) return { path: [...path, m], complete: true, visited: seen.size };
+    if (seen.size > cap) return { path: null, complete: false, visited: seen.size };
     path.push(m);
     stack.push({ kids: expand(n), i: 0 });
   }
-  return { path: null, complete: true };
+  return { path: null, complete: true, visited: seen.size };
 }
 
 export function heuristic(state: State, level: LevelDef): number {

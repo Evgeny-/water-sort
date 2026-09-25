@@ -18,6 +18,8 @@ export interface SolveResult {
   left: number;
   /** the solution is a shortest one */
   optimal: boolean;
+  /** when proven lost: how many positions can still be reached (a handful means the moves only go round in circles) */
+  reach: number | null;
 }
 
 self.onmessage = (e: MessageEvent<SolveRequest>) => {
@@ -26,14 +28,14 @@ self.onmessage = (e: MessageEvent<SolveRequest>) => {
   // BFS gives the shortest solution on small positions; it keeps whole positions, so its budget
   // is small and bigger boards go straight to the depth-first search, which answers in milliseconds
   const bfs = solveBfs(level, state, 12_000);
-  if (bfs.solvable && bfs.path) result = { id, move: bfs.path[0] ?? null, solvable: true, left: bfs.path.length, optimal: true };
-  else if (bfs.exact) result = { id, move: null, solvable: false, left: 0, optimal: true };
+  if (bfs.solvable && bfs.path) result = { id, move: bfs.path[0] ?? null, solvable: true, left: bfs.path.length, optimal: true, reach: null };
+  else if (bfs.exact) result = { id, move: null, solvable: false, left: 0, optimal: true, reach: bfs.states };
   else {
     // bigger positions: a depth-first search keeps only hashes and covers far more
     const dfs = solveDfs(level, state, 300_000);
     result = dfs.path
-      ? { id, move: dfs.path[0] ?? null, solvable: true, left: dfs.path.length, optimal: false }
-      : { id, move: null, solvable: dfs.complete ? false : null, left: 0, optimal: false };
+      ? { id, move: dfs.path[0] ?? null, solvable: true, left: dfs.path.length, optimal: false, reach: null }
+      : { id, move: null, solvable: dfs.complete ? false : null, left: 0, optimal: false, reach: dfs.complete ? dfs.visited : null };
   }
   (self as unknown as { postMessage(m: SolveResult): void }).postMessage(result);
 };
