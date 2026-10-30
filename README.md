@@ -81,3 +81,8 @@ The level builders and the difficulty report are described in [lab/README.md](la
 | [`src/`](src/) | The previous React version, kept for reference and no longer deployed |
 | [`docs/screenshots/`](docs/screenshots/) | Images for this README |
 | [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) | Builds `lab/` and publishes it to evgeny.io on every push to `main` |
+
+## License
+
+[MIT](LICENSE). If you build something on this code, a link back to the
+[original game](https://evgeny.io/games/water-sort/) is appreciated.
